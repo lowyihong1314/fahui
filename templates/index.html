@@ -1,0 +1,389 @@
+{% extends "base.html" %}
+
+{% block title %}法会系统{% endblock %}
+
+{% block content %}
+<style>
+.register_container {
+  max-width: 500px;
+  margin: 40px auto;
+  background-color: var(--bg-color);
+  padding: 30px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  color: var(--text-color);
+}
+
+.register_container h1 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: var(--title-color);
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.form-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 16px;
+  color: var(--text-color);
+  background-color: var(--bg-color);
+  transition: border-color 0.3s;
+}
+
+.form-group input:focus {
+  border-color: var(--title-color);
+  outline: none;
+}
+
+.add-button {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.button,.pop_up_button {
+  flex: 1;
+  padding: 12px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 4px;
+  color: var(--button-text-color);
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.pop_up_button{
+  background-color: var(--edit-button-bg);
+}
+
+.add-button .button[type="button"] {
+  background-color: var(--save-button-bg);
+}
+
+.add-button .button[type="button"]:hover {
+  background-color: var(--save-button-bg-hover);
+}
+
+/* 假设第二个按钮是搜索 */
+.add-button .button:nth-child(2) {
+  background-color: var(--edit-button-bg);
+}
+
+.add-button .button:nth-child(2):hover {
+  background-color: var(--edit-button-bg-hover);
+}
+
+.search-modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0; top: 0;
+  width: 100%; height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.search-modal-content {
+  background-color: var(--bg-color);
+  margin: 10% auto;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  width: 80%;
+  max-width: 500px;
+  border-radius: 8px;
+  color: var(--text-color);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.search-close-button {
+  float: right;
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--nav-link-color);
+  cursor: pointer;
+}
+
+.search-close-button:hover {
+  color: var(--nav-link-hover-color);
+}
+
+#search_input {
+  width: 100%;
+  padding: 10px;
+  font-size: 16px;
+  margin-top: 15px;
+  border: 1px solid var(--border-color);
+  background-color: var(--border-color);
+  color: var(--text-color);
+  border-radius: 4px;
+  box-sizing: border-box; /* ✅ 解决 input 超出问题 */
+}
+
+#search_results .search-result-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  color: var(--text-color);
+  background-color: var(--bg-color);
+  font-size: 14px;
+}
+
+#search_results .search-result-table th,
+#search_results .search-result-table td {
+  border: 1px solid var(--border-color);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+#search_results .search-result-table th {
+  background-color: var(--nav-bg-color);
+  color: var(--nav-link-color);
+  font-weight: bold;
+}
+
+#search_results .search-result-table tr:hover {
+  background-color: var(--notify-close-hover-bg);
+  cursor: pointer;
+}
+
+/* 简单的模态框样式 */
+#selectionModal {
+  display: none; 
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0,0,0,0.5);
+}
+.modal-content {
+  background-color: var(--bg-color);
+  margin: 15% auto;
+  padding: 20px;
+  width: 300px;
+  text-align: center;
+  border-radius: 8px;
+}
+
+</style>
+
+<h2 id="template_title" class="template_title">启建盂兰盆孝亲超度法会</h2>
+
+    <div class="register_container">
+        <h1>基本讯息</h1>
+        <form id="fahuiForm">
+            <div class="form-group">
+                <label for="name">推荐人(可不填):</label>
+                <input type="text" id="name" name="member_name" placeholder="选填">
+            </div>
+            <div class="form-group">
+                <label for="name">名字:</label>
+                <input type="text" id="name" name="customer_name" placeholder="罗美丽" required>
+            </div>
+            <div class="form-group">
+                <label for="name">Email(邮箱):</label>
+                <input type="email" id="Email" name="email" placeholder="xinyageneration@utba.com"
+                    title="输入有效邮箱">
+            </div>
+            <div class="form-group">
+                <label for="phone">联络号码:</label>
+                <input type="tel" id="phone" name="phone" placeholder="01136600057" required>
+            </div>
+            <div class="add-button">
+                <button class="button" type="button" onclick="submit_register_data()">确认</button>
+                <button class="button" onclick="fahui_search()">搜索历史记录</button>
+            </div>
+        </form>
+    </div>
+
+<div id="search_modal" class="search-modal">
+  <div class="search-modal-content">
+    <span class="search-close-button" onclick="close_search_modal()">&times;</span>
+    <h2>搜索历史记录</h2>
+    <input type="text" id="search_input" placeholder="输入英文名或电话号码..." oninput="search_engine(this.value)" />
+    <div id="search_results"></div>
+  </div>
+</div>
+
+<div id="selectionModal">
+  <div class="modal-content" class="add-button">
+    <p>请选择：</p>
+    <button class="pop_up_button" onclick="fahui_search()" >我曾经注册</button>
+    <button class="pop_up_button" onclick="close_selection_modal()">我想注册</button>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/show_alert.js') }}"></script>
+
+    <script>
+
+window.onload = async function () {
+  try {
+    const res = await fetch('/user_control/get_user_data');
+    if (!res.ok) throw new Error('请求失败');
+    const data = await res.json();
+  } catch (error) {
+    // 请求失败或者报错就弹窗
+    show_selection_modal();
+  }
+};
+
+  function show_selection_modal() {
+    document.getElementById("selectionModal").style.display = "block";
+  }
+
+  function close_selection_modal() {
+    document.getElementById("selectionModal").style.display = "none";
+  }
+
+
+function fahui_search() {
+  close_selection_modal();
+  console.log('fahui_search')
+  const modal = document.getElementById("search_modal");
+  modal.style.display = "block";
+
+  // 添加点击背景关闭功能（仅在打开时添加）
+  window.addEventListener('click', function outsideClickListener(event) {
+    if (event.target === modal) {
+      modal.style.display = "none";
+      window.removeEventListener('click', outsideClickListener); // 移除监听，避免重复绑定
+    }
+  });
+}
+
+function close_search_modal() {
+  const modal = document.getElementById("search_modal");
+  modal.style.display = "none";
+}
+
+async function search_engine(value) {
+  console.log("搜索内容:", value);
+
+  const resultContainer = document.getElementById('search_results');
+  resultContainer.innerHTML = ''; // 清空原内容
+
+  try {
+    const response = await fetch('/api/fahui_search_emgine', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ keyword: value.trim() })
+    });
+
+    if (!response.ok) throw new Error(`网络错误: ${response.status}`);
+
+    const data = await response.json();
+    console.log("搜索结果:", data);
+
+    if (data.success && Array.isArray(data.results) && data.results.length > 0) {
+      const table = document.createElement('table');
+      table.classList.add('search-result-table'); // 为样式留钩子
+
+      // 表头
+      const headerRow = document.createElement('tr');
+      ['客户名', '电话', '登记名','版本号'].forEach(title => {
+        const th = document.createElement('th');
+        th.textContent = title;
+        headerRow.appendChild(th);
+      });
+      table.appendChild(headerRow);
+
+      // 内容
+      data.results.forEach(item => {
+        const row = document.createElement('tr');
+
+        const tdCustomer = document.createElement('td');
+        tdCustomer.textContent = item.customer_name || '';
+        row.appendChild(tdCustomer);
+
+        const tdPhone = document.createElement('td');
+        tdPhone.textContent = item.phone || '';
+        row.appendChild(tdPhone);
+
+        const tdName = document.createElement('td');
+        tdName.textContent = item.name || '';
+        row.appendChild(tdName);
+
+        const tdVer = document.createElement('td');
+        tdVer.textContent = item.version || '';
+        row.appendChild(tdVer);
+
+        // 添加点击事件
+        row.style.cursor = 'pointer'; // 鼠标悬停显示为手型
+        row.addEventListener('click', () => {
+          if (item.id) {
+            window.location.href = `/template/show_order_detail/${item.id}`;
+          }
+        });
+
+        table.appendChild(row);
+      });
+      
+      resultContainer.appendChild(table);
+    } else {
+      resultContainer.textContent = '未找到相关资料';
+    }
+
+  } catch (error) {
+    console.error("搜索失败:", error);
+    resultContainer.textContent = '搜索发生错误，请稍后重试';
+  }
+}
+
+function submit_register_data() {
+    const form = document.getElementById('fahuiForm');
+    const inputs = form.querySelectorAll('input');
+    
+    const formData = {};
+
+    inputs.forEach(input => {
+        formData[input.name] = input.value;
+    });
+
+    fetch('/api/new_customer', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            show_alert('success', `提交成功，订单 ID:${data.order_id}`);
+            setTimeout(function() {
+              window.location.href = `/template/show_order_detail/${data.order_id}`;
+            }, 1000);     
+        } else {
+            show_alert('error', data.error || '提交失败');
+        }
+    })
+    .catch(err => {
+        console.error("提交出错:", err);
+        show_alert('error', '网络或服务器错误');
+    });
+
+    console.log("表单数据:", formData);
+}
+
+
+    </script>
+{% endblock %}

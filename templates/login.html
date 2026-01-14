@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<style>
+/* 标题样式 */
+#form-title {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 1.8rem;
+  color: var(--text-color);
+}
+
+/* 表单整体样式 */
+form {
+  max-width: 400px;
+  margin: 0 auto 2rem;
+  padding: 1.5rem;
+  background-color: var(--nav-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+/* 标签样式 */
+label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-color);
+  font-weight: bold;
+}
+
+/* 输入框样式 */
+input[type="text"],
+input[type="password"],
+input[type="phone"],
+input[type="email"] {
+  width: 100%;
+  padding: 0.6rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
+/* 按钮基础样式 */
+button {
+  width: 100%;
+  padding: 0.7rem;
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--button-text-color);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+/* 登录按钮颜色 */
+#login-form button {
+  background-color: var(--save-button-bg);
+}
+
+#login-form button:hover {
+  background-color: var(--save-button-bg-hover);
+}
+
+/* 注册按钮颜色 */
+#register-form button {
+  background-color: var(--edit-button-bg);
+}
+
+#register-form button:hover {
+  background-color: var(--edit-button-bg-hover);
+}
+
+/* 隐藏表单 */
+.hidden {
+  display: none;
+}
+
+/* 切换链接样式 */
+.toggle-link {
+  color: var(--nav-link-color);
+  cursor: pointer;
+  text-decoration: underline;
+  margin: 0 0.5rem;
+}
+
+.toggle-link:hover {
+  color: var(--nav-link-hover-color);
+}
+</style>
+
+<h2 id="form-title">登录</h2>
+
+<!-- 登录表单 -->
+<form id="login-form">
+  <label for="login-username">Username:</label>
+  <input type="text" id="login-username" name="username" required />
+  
+  <label for="login-password">Password:</label>
+  <input type="password" id="login-password" name="password" required />
+  <input type="hidden" id="next_field" value="{{ request.args.get('next', '/') }}">
+  
+  <button type="submit">Login</button>
+</form>
+
+<!-- 注册表单（默认隐藏） -->
+<form id="register-form" class="hidden">
+  <label for="login-username">Username:</label>
+  <input type="text" id="register-username" name="username" required />
+  
+  <label for="register-email">Email:</label>
+  <input type="email" id="register-email" name="email" required />
+
+  <label for="register-phone">Phone:</label>
+  <input type="phone" id="register-phone" name="phone" required />
+  
+  <label for="register-password">Password:</label>
+  <input type="password" id="register-password" name="password" required />
+  
+  <button type="submit">Register</button>
+</form>
+
+<p>
+  <span id="toggle-to-register" class="toggle-link">没有账号？去注册</span>
+  <span id="toggle-to-login" class="toggle-link hidden">已有账号？去登录</span>
+</p>
+
+<script>
+  const loginForm = document.getElementById('login-form');
+  const registerForm = document.getElementById('register-form');
+  const formTitle = document.getElementById('form-title');
+  const toggleToRegister = document.getElementById('toggle-to-register');
+  const toggleToLogin = document.getElementById('toggle-to-login');
+
+  toggleToRegister.addEventListener('click', () => {
+    loginForm.classList.add('hidden');
+    registerForm.classList.remove('hidden');
+    toggleToRegister.classList.add('hidden');
+    toggleToLogin.classList.remove('hidden');
+    formTitle.textContent = '目前无法注册';
+  });
+
+  toggleToLogin.addEventListener('click', () => {
+    registerForm.classList.add('hidden');
+    loginForm.classList.remove('hidden');
+    toggleToLogin.classList.add('hidden');
+    toggleToRegister.classList.remove('hidden');
+    formTitle.textContent = '登录';
+  });
+
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+      username: loginForm.username.value,
+      password: loginForm.password.value,
+      next: document.getElementById('next_field').value
+    };
+
+    const res = await fetch('{{ url_for("user_control.login") }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+
+    if (res.ok && result.redirect) {
+      window.location.href = result.redirect;
+    } else {
+      alert('登录失败: ' + (result.error || '未知错误'));
+    }
+  });
+
+
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+      username: registerForm.username.value,
+      email: registerForm.email.value,
+      phone: registerForm.phone.value,
+      password: registerForm.password.value
+    };
+
+    const res = await fetch('{{ url_for("user_control.register") }}', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+
+    if(res.ok){
+      show_alert("status",result.success || '注册成功，请登录');
+    } else {
+      show_alert('注册失败: ' + (result.error || '未知错误'));
+    }
+  });
+</script>
+{% endblock %}

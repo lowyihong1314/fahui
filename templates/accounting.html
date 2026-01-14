@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+
+{% block title %}Accounting{% endblock %}
+
+{% block content %}
+<style>
+  #base_container {
+    max-width: 1600px;
+  }
+  .Accounting_table{
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background: var(--notify-bg-color);
+    color: var(--notify-text-color);
+    border: 1px solid var(--border-color);
+  }
+  th, td {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+  }
+  th {
+    background: var(--nav-bg-color);
+    color: var(--nav-link-color);
+  }
+  tr:hover {
+    background-color: var(--nav-link-hover-color);
+    cursor: pointer;
+    color: var(--button-text-color);
+  }
+  .filter-bar {
+    margin-top: 20px;
+    margin-bottom: 10px;
+    background: var(--nav-bg-color);
+    padding: 8px 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+  }
+  .filter-bar label {
+    color: var(--nav-link-color);
+    margin-right: 8px;
+  }
+  .filter-bar select {
+    padding: 4px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    background: var(--notify-bg-color);
+    color: var(--notify-text-color);
+  }
+  .pagination {
+    margin-top: 10px;
+    text-align: right;
+  }
+  .pagination button {
+    margin: 0 2px;
+    padding: 5px 10px;
+    background: var(--edit-button-bg);
+    color: var(--button-text-color);
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .pagination button:disabled {
+    background: var(--edit-button-bg-hover);
+    cursor: default;
+    opacity: 0.7;
+  }
+  .pagination button:hover:not(:disabled) {
+    background: var(--edit-button-bg-hover);
+  }
+  .template_title {
+    color: var(--title-color);
+    font-size: 2em;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  #paymentChart {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 20px;
+    max-width: 100%;
+  }
+  #paymentChart canvas{
+    max-width: 250px;
+    max-height: 250px;
+  }
+</style>
+
+<h2 id="template_title" class="template_title">Fahui Accounting</h2>
+<div id="paymentChart"></div>
+<div class="filter-bar">
+  <label for="statusFilter">筛选状态：</label>
+  <select id="statusFilter">
+    <option value="all">All</option>
+    <option value="panding">panding</option>
+    <option value="approve">approve</option>
+    <option value="reject">reject</option>
+  </select>
+</div>
+<div id="Accounting" class="Accounting_table"></div>
+<div class="pagination" id="pagination"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+  let allData = [];
+  let currentPage = 1;
+  const pageSize = 10;
+
+  async function get_account_data() {
+    const res = await fetch('/payment/get_all_payment_data');
+    const json = await res.json();
+
+    if (!json.success) {
+      alert("加载支付数据失败！");
+      return;
+    }
+
+    allData = json.data;
+    renderTable();
+    renderPaymentCharts(allData);
+  }
+
+  function renderTable() {
+    const status = document.getElementById("statusFilter").value;
+    let filtered = allData;
+    if (status !== "all") {
+      filtered = allData.filter(item => item.status === status);
+    }
+
+    const totalPages = Math.ceil(filtered.length / pageSize);
+    if (currentPage > totalPages) currentPage = totalPages || 1;
+    const start = (currentPage - 1) * pageSize;
+    const pageData = filtered.slice(start, start + pageSize);
+
+    const container = document.getElementById("Accounting");
+    const table = document.createElement("table");
+
+    const header = `
+      <tr>
+        <th>ID</th>
+        <th>Customer Name</th>
+        <th>Order ID</th>
+        <th>Total Price</th>
+        <th>Payment Mode</th>
+        <th>Document</th>
+        <th>Status</th>
+        <th>Created At</th>
+        <th>Valid By</th>
+        <th>Valid At</th>
+      </tr>
+    `;
+    table.innerHTML = header;
+
+    pageData.forEach(item => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${item.id}</td>
+        <td>${item.order.customer_name}</td>
+        <td>${item.order_id}</td>
+        <td>${item.total_price}</td>
+        <td>${item.payment_mode}</td>
+        <td>${item.document}</td>
+        <td>${item.status}</td>
+        <td>${item.created_at}</td>
+        <td>${item.valid_by || ''}</td>
+        <td>${item.valid_at || ''}</td>
+      `;
+      tr.onclick = () => change_PaymentData_status(item.id);
+      table.appendChild(tr);
+    });
+
+    container.innerHTML = "";
+    container.appendChild(table);
+
+    // Pagination
+    const pagination = document.getElementById("pagination");
+    pagination.innerHTML = "";
+    for (let i = 1; i <= totalPages; i++) {
+      const btn = document.createElement("button");
+      btn.textContent = i;
+      btn.disabled = i === currentPage;
+      btn.onclick = () => {
+        currentPage = i;
+        renderTable();
+      };
+      pagination.appendChild(btn);
+    }
+  }
+function renderPaymentCharts(data) {
+  // 聚合数据
+  const statusAgg = {};
+  const modeAgg = {};
+
+  data.forEach(p => {
+    // 按 status 聚合（所有记录都算）
+    if (!statusAgg[p.status]) statusAgg[p.status] = 0;
+    statusAgg[p.status] += p.total_price;
+
+    // 按 payment_mode 聚合（排除 status = reject）
+    if (p.status !== "reject") {
+      if (!modeAgg[p.payment_mode]) modeAgg[p.payment_mode] = 0;
+      modeAgg[p.payment_mode] += p.total_price;
+    }
+  });
+
+  // 清空旧图表
+  const container = document.getElementById("paymentChart");
+  container.innerHTML = "";
+
+  // 创建两个 canvas
+  const statusCanvas = document.createElement("canvas");
+  const modeCanvas = document.createElement("canvas");
+  container.appendChild(statusCanvas);
+  container.appendChild(modeCanvas);
+
+  // 生成 status 饼图
+  new Chart(statusCanvas, {
+    type: "pie",
+    data: {
+      labels: Object.keys(statusAgg),
+      datasets: [{
+        data: Object.values(statusAgg),
+        backgroundColor: ["#4caf50", "#f44336", "#ff9800", "#2196f3", "#9c27b0"]
+      }]
+    },
+    options: {
+      plugins: {
+        title: {
+          display: true,
+          text: "按 Status 汇总金额"
+        }
+      }
+    }
+  });
+
+  // 生成 payment_mode 饼图
+  new Chart(modeCanvas, {
+    type: "pie",
+    data: {
+      labels: Object.keys(modeAgg),
+      datasets: [{
+        data: Object.values(modeAgg),
+        backgroundColor: ["#3f51b5", "#009688", "#e91e63", "#ff5722", "#607d8b"]
+      }]
+    },
+    options: {
+      plugins: {
+        title: {
+          display: true,
+          text: "按 Payment Mode 汇总金额 (不含 Reject)"
+        }
+      }
+    }
+  });
+}
+
+  async function get_payment_detail(payment_id) {
+    const res = await fetch(`/payment/get_payment_detail/${payment_id}`);
+    const json = await res.json();
+
+    if (!json.success) {
+      alert("获取支付详情失败：" + json.message);
+      return null;
+    }
+    return json.data;
+  }
+
+async function change_PaymentData_status(payment_id) {
+  const detail = await get_payment_detail(payment_id);
+
+  // ===== 创建 modal 容器 =====
+  const modal = document.createElement("div");
+  modal.className = "payment-modal";
+  modal.style.position = "fixed";
+  modal.style.top = "50%";
+  modal.style.left = "50%";
+  modal.style.transform = "translate(-50%, -50%)";
+  modal.style.background = "var(--bg-color)";
+  modal.style.color = "var(--text-color)";
+  modal.style.padding = "20px";
+  modal.style.boxShadow = "0 0 10px rgba(0,0,0,0.15)";
+  modal.style.border = "1px solid var(--border-color)";
+  modal.style.borderRadius = "8px";
+  modal.style.zIndex = Date.now(); // 确保后开的在上层
+  modal.style.minWidth = "200px";
+  modal.style.maxWidth = "400px";
+  modal.style.fontSize = "0.95em";
+  modal.style.maxHeight = "80vh";
+  modal.style.overflowY = "auto";
+
+  // ===== 顶部标题栏（用于拖动） =====
+  const header = document.createElement("div");
+  header.style.cursor = "move";
+  header.style.fontWeight = "bold";
+  header.style.marginBottom = "10px";
+  header.style.display = "flex";
+  header.style.justifyContent = "space-between";
+  header.style.alignItems = "center";
+  header.innerHTML = `
+    <span>付款单 ${payment_id}</span>
+    <button id="closeBtn" style="
+      background: transparent;
+      border: none;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      color: var(--text-color);
+    ">✖</button>
+  `;
+  modal.appendChild(header);
+
+  // ===== 详情内容 =====
+  let detailHtml = "";
+  if (detail && detail.order) {
+    const order = detail.order;
+    const items = order.order_items || [];
+
+    const stats = {};
+    let totalAmount = 0;
+    items.forEach(item => {
+      if (!stats[item.code]) stats[item.code] = { count: 0, sum: 0 };
+      stats[item.code].count += 1;
+      stats[item.code].sum += Number(item.price) || 0;  // ✅ 转数字
+      totalAmount += Number(item.price) || 0;           // ✅ 转数字
+    });
+
+    let tableRows = "";
+    Object.entries(stats).forEach(([code, { count, sum }]) => {
+      tableRows += `
+        <tr>
+          <td>${get_fahui_type(code)}</td>
+          <td style="text-align:center;">${count}</td>
+          <td style="text-align:right;">${sum.toFixed(2)}</td>
+        </tr>
+      `;
+    });
+
+    detailHtml = `
+      <div style="margin-bottom: 14px;">
+        <div><b>客户:</b> ${order.customer_name}</div>
+        <div><b>电话:</b> ${order.phone}</div>
+        <div><b>订单状态:</b> ${order.status}</div>
+      </div>
+      <div style="margin-top:10px;">
+        <table style="border-collapse: collapse; width:100%; border:1px solid var(--border-color);">
+          <thead style="background: var(--nav-bg-color);">
+            <tr>
+              <th style="border:1px solid var(--border-color); padding:6px; text-align:left;">项目</th>
+              <th style="border:1px solid var(--border-color); padding:6px; text-align:center;">数量</th>
+              <th style="border:1px solid var(--border-color); padding:6px; text-align:right;">小计</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+            <tr>
+              <td style="border:1px solid var(--border-color); padding:6px;">合计</td>
+              <td style="border:1px solid var(--border-color); padding:6px; text-align:center;">${items.length}</td>
+              <td style="border:1px solid var(--border-color); padding:6px; text-align:right;">${totalAmount.toFixed(2)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  // ===== 内容区 =====
+  const content = document.createElement("div");
+  content.innerHTML = `
+    <div id="paymentContainer" style="margin-bottom: 10px; max-height:300px; overflow:auto; text-align:center;">
+      加载中...
+    </div>
+    ${detailHtml}
+    <div style="margin-top:14px;">
+      <label for="statusSelect">请选择新的状态：</label>
+      <select id="statusSelect" style="padding:6px; border:1px solid var(--border-color); border-radius:4px; margin-left:6px;">
+        <option value="approve">approve</option>
+        <option value="reject">reject</option>
+        <option value="panding">panding</option>
+      </select>
+    </div>
+    <div style="margin-top: 14px; text-align: right;">
+      <button id="confirmBtn" 
+        style="background: var(--save-button-bg); color: var(--button-text-color); border:none; border-radius:4px; padding:6px 14px; margin-left:6px; cursor:pointer;">
+        确认
+      </button>
+      <button id="cancelBtn" 
+        style="background: var(--delete-button-bg); color: var(--button-text-color); border:none; border-radius:4px; padding:6px 14px; margin-left:6px; cursor:pointer;">
+        取消
+      </button>
+    </div>
+  `;
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+
+  // ===== 判断文件类型并展示 =====
+  const res = await fetch(`/payment/get_payment_image/${payment_id}`);
+  const blob = await res.blob();
+  const container = modal.querySelector("#paymentContainer");
+
+  if (blob.type === "application/pdf") {
+    container.innerHTML = `
+      <embed src="/payment/get_payment_image/${payment_id}" 
+             type="application/pdf" 
+             style="width:100%; height:300px; border:1px solid var(--border-color); border-radius:4px;" />
+    `;
+  } else {
+    container.innerHTML = `
+      <img src="/payment/get_payment_image/${payment_id}" 
+           style="width:100%; height:100%; object-fit:contain; border:1px solid var(--border-color); border-radius:4px;" />
+    `;
+  }
+
+  // ===== 按钮事件 =====
+  modal.querySelector("#confirmBtn").onclick = async () => {
+    const newStatus = modal.querySelector("#statusSelect").value;
+    const res = await fetch(`/payment/update_payment_status/${payment_id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus })
+    });
+    const result = await res.json();
+    if (result.success) {
+      alert("状态更新成功！");
+      get_account_data();
+    } else {
+      alert("更新失败：" + result.message);
+    }
+    document.body.removeChild(modal);
+  };
+  modal.querySelector("#cancelBtn").onclick = () => document.body.removeChild(modal);
+  modal.querySelector("#closeBtn").onclick = () => document.body.removeChild(modal);
+
+  // ===== 拖动功能 =====
+  let isDragging = false, offsetX = 0, offsetY = 0;
+  header.onmousedown = e => {
+    isDragging = true;
+    const rect = modal.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    modal.style.transform = ""; // 清除居中 transform
+  };
+  document.onmousemove = e => {
+    if (isDragging) {
+      modal.style.left = e.clientX - offsetX + "px";
+      modal.style.top = e.clientY - offsetY + "px";
+    }
+  };
+  document.onmouseup = () => isDragging = false;
+}
+
+
+
+  document.getElementById("statusFilter").onchange = function () {
+    currentPage = 1;
+    renderTable();
+  };
+
+  window.onload = async function () {
+    get_account_data();
+  };
+</script>
+{% endblock %}

@@ -1,0 +1,608 @@
+{% extends "base.html" %}
+
+{% block title %}支付{% endblock %}
+
+{% block content %}
+<style>
+  .payment-options {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-top: 20px;
+  }
+
+  .payment-option {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    padding: 10px;
+    cursor: pointer;
+    transition: box-shadow 0.2s ease;
+    width: 120px;
+    text-align: center;
+  }
+
+  .payment-option:hover {
+    box-shadow: 0 0 10px rgba(0,0,0,0.2);
+  }
+
+  .payment-option img {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+  }
+
+
+
+/* Modal Overlay */
+.modal {
+  display: flex;             /* 用 flex 居中 */
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 9999;
+  overflow-y: auto;          /* 超出时允许页面滚动 */
+  padding: 20px;             /* 保证边距 */
+  box-sizing: border-box;
+}
+
+/* Dialog Container */
+.modal-dialog {
+  width: 100%;
+  max-width: 400px;
+  background: var(--bg-color);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  max-height: 90vh;          /* 弹窗最多占 90% 高度 */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Modal Content */
+.modal-content {
+  padding: 16px;
+  color: var(--text-color);
+  flex: 1;
+  overflow-y: auto;          /* 让内容可滚动 */
+}
+
+
+/* Header */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* Close Button */
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-color);
+}
+
+/* Body */
+.modal-body {
+  margin-top: 10px;
+}
+
+/* Footer */
+.modal-footer {
+  margin-top: 16px;
+  text-align: right;
+}
+
+/* Buttons */
+.btn-submit {
+  background-color: var(--save-button-bg);
+  color: var(--button-text-color);
+  border: none;
+  padding: 6px 12px;
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.btn-submit:hover {
+  background-color: var(--save-button-bg-hover);
+}
+
+.btn-cancel {
+  background: none;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.btn-cancel:hover {
+  background-color: var(--notify-close-hover-bg);
+}
+/* 表格样式 */
+.user-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border-color);
+}
+
+.user-table th,
+.user-table td {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.user-table tr.highlight-row {
+  background-color: var(--notify-close-hover-bg);
+  color: var(--title-color);
+}
+
+.user-table tr.clickable {
+  cursor: pointer;
+}
+
+.user-table tr.clickable:hover {
+  background-color: var(--nav-link-hover-color);
+  color: var(--button-text-color);
+}
+
+/* 遮罩层 */
+.custom-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5); /* 半透明遮罩 */
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 弹出框主体 */
+.custom-modal-content {
+  background: var(--bg-color);
+  color: var(--text-color);
+  padding: 30px 20px;
+  border-radius: 8px;
+  text-align: center;
+  position: relative;
+  min-width: 300px;
+  max-width: 400px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+}
+
+/* 关闭按钮 */
+.custom-close-btn {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  font-size: 24px;
+  color: var(--ping-color);
+  cursor: pointer;
+}
+
+/* 提示文字 */
+.status-message {
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: var(--text-color);
+}
+
+/* 下载按钮 */
+.download-btn {
+  display: inline-block;
+  background: var(--edit-button-bg);
+  color: var(--button-text-color);
+  padding: 10px 15px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: bold;
+  transition: background 0.3s ease;
+}
+
+.download-btn:hover {
+  background: var(--edit-button-bg-hover);
+}
+
+</style>
+
+<h2 id="template_title" class="template_title">总功德金</h2>
+
+<div id="select_payment_mode" class="payment-options"></div>
+
+
+<script>
+const orderId = '{{order_id}}'
+
+  window.onload = async function() {
+    await get_total();
+    await check_status();
+  };
+
+  async function check_status() {
+    try {
+      const response = await fetch(`/payment/get_payment_data/${orderId}`);
+      const result = await response.json();
+
+      if (result.success && result.data.length > 0) {
+        console.log(result);
+        const latest = result.data[0];
+        const status = latest.status.toLowerCase();
+
+      if (status === 'approve' || status === 'panding') {
+        if (latest.login !== true) {   // ✅ 判断是否未登录
+          show_modal(status);
+        }
+      }
+      }
+    } catch (error) {
+      console.error('获取支付信息失败:', error);
+    }
+  }
+
+  function show_modal(status) {
+    // 避免重复添加
+    const existingModal = document.getElementById('payment-status-modal');
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    const modal = document.createElement('div');
+    modal.id = 'payment-status-modal';
+    modal.className = 'custom-modal-overlay';
+
+    modal.innerHTML = `
+      <div class="custom-modal-content">
+        ${
+          status === 'approve'
+            ? `<p class="status-message">支付已通过审核。</p>
+               <a href="/payment/download_quotiton/${orderId}" class="download-btn" title="下载发票">🧾 下载发票</a>`
+            : `<p class="status-message">支付等待审核中，请稍后刷新页面。<a href="/">点击这里回到主页</a></p>`
+        }
+      </div>
+    `;
+
+    document.body.appendChild(modal);
+  }
+  async function get_total() {
+    try {
+      const res = await fetch(`/payment/calculate_amount/${orderId}`);
+      const data = await res.json();
+
+      const amount = data.amount ?? 0;
+      const title = document.getElementById("template_title");
+
+      title.textContent = `总功德金 RM${amount}`;
+      generate_payment_options();
+    } catch (err) {
+      console.error("获取金额失败：", err);
+    }
+  }
+
+function generate_payment_options() {
+  const container = document.getElementById("select_payment_mode");
+
+  const images = [
+    {
+      src: "/static/images/bank_transfer.png",
+      label: "银行转账",
+      onClick: () => {
+        openBankTransferModal();
+      }
+    },
+    {
+      src: "/static/images/Pay_cash_icon.jpg",
+      label: "现金支付",
+      onClick: () => {
+        do_cash_payment();
+      }
+    },
+    {
+      src: "/static/images/TNG_icon.png",
+      label: "TNG",
+      onClick: () => {
+        openTNGModal();
+      }
+    },
+    {
+      src: "/static/images/pdf-file-format.png",
+      label: "下载明细",
+      onClick: () => {
+        download_order_detail();
+      }
+    }
+  ];
+
+  images.forEach(img => {
+    const optionDiv = document.createElement('div');
+    optionDiv.className = "payment-option";
+
+    const image = document.createElement('img');
+    image.src = img.src;
+    image.alt = img.label;
+
+    const caption = document.createElement('div');
+    caption.textContent = img.label;
+
+    optionDiv.appendChild(image);
+    optionDiv.appendChild(caption);
+
+    // 点击事件绑定具体函数
+    optionDiv.addEventListener('click', img.onClick);
+
+    container.appendChild(optionDiv);
+  });
+}
+
+function openBankTransferModal() {
+  // 删除已有 modal（如果存在）
+  const existingModal = document.getElementById('bankTransferModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  // 创建 modal 的 HTML 字符串
+  const modalHtml = `
+    <div class="modal" id="bankTransferModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">银行转账支付</h5>
+            <button type="button" class="modal-close" onclick="closeModal()">×</button>
+          </div>
+          <div class="modal-body">
+            <p id="amountInfo">加载中...</p>
+            <p>
+              银行账号信息:<br />
+              Maybank<br />
+              PERTUBUHAN PENGANUTAGAMA BUDDHA ULU TIRAM<br />
+              <a href="#" onclick="copyToClipboard('501338525918'); return false;">Acc: 501338525918 点击复制</a>
+              <small>请在 Recipient's Reference 中注明您的姓名，谢谢</small>
+            </p>
+            <p>请上传支付凭证（图片或PDF）:</p>
+            <input type="file" id="paymentFile" accept="image/*,application/pdf" />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-submit" onclick="submitBankPayment('bank')">提交支付</button>
+            <button type="button" class="btn-cancel" onclick="closeModal()">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // 添加 modal 到页面
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+  // 加载金额
+  fetch(`/payment/calculate_amount/${orderId}`)
+    .then(res => res.json())
+    .then(data => {
+      const infoEl = document.getElementById('amountInfo');
+      if (data.amount !== undefined) {
+        infoEl.textContent = `你需要支付 RM${data.amount}`;
+      } else {
+        infoEl.textContent = '无法获取支付金额';
+      }
+    })
+    .catch(() => {
+      document.getElementById('amountInfo').textContent = '获取金额失败';
+    });
+}
+
+function openTNGModal() {
+  // 删除已有 modal（如果存在）
+  const existingModal = document.getElementById('bankTransferModal');
+  if (existingModal) {
+    existingModal.remove();
+  }
+
+  const modalHtml = `
+    <div class="modal" id="bankTransferModal">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">TNG 电子钱包支付</h5>
+            <p id="amountInfo">加载中...</p>
+            <button type="button" class="modal-close" onclick="closeModal()">×</button>
+          </div>
+          <div class="modal-body">
+            <p>请扫描以下二维码完成支付：</p>
+            <div style="text-align:center;">
+              <img src="/static/images/logo/tngQR_UTBA.jpeg" alt="TNG QR Code" style="max-width:100%; height:auto; border:1px solid var(--border-color); border-radius:4px;" />
+            </div>
+            <p style="margin-top:10px;">完成支付后，请上传支付截图：</p>
+            <input type="file" id="paymentFile" accept="image/*,application/pdf" />
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn-submit" onclick="submitBankPayment('tng')">提交支付</button>
+            <button type="button" class="btn-cancel" onclick="closeModal()">取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    fetch(`/payment/calculate_amount/${orderId}`)
+    .then(res => res.json())
+    .then(data => {
+      const infoEl = document.getElementById('amountInfo');
+      if (data.amount !== undefined) {
+        infoEl.textContent = `你需要支付 RM${data.amount}`;
+      } else {
+        infoEl.textContent = '无法获取支付金额';
+      }
+    })
+    .catch(() => {
+      document.getElementById('amountInfo').textContent = '获取金额失败';
+    });
+}
+
+
+function closeModal() {
+  const modal = document.getElementById('bankTransferModal');
+  if (modal) {
+    modal.remove();
+  }
+}
+
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => alert('已复制: ' + text));
+}
+
+function set_cash_payment() {
+  if (!orderId) {
+    alert('未提供订单 ID');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('payment_mode', 'cash');
+
+  fetch(`/payment/make_payment/${orderId}`, {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      console.log('现金支付成功，支付ID:', data.payment_id);
+      alert('现金支付成功！');
+      closeModal();
+      window.location.reload();
+
+    } else {
+      alert('支付失败: ' + data.message);
+    }
+  })
+  .catch(err => {
+    console.error('请求错误', err);
+    alert('请求失败，请重试');
+  });
+}
+
+function submitBankPayment(paymentMode) {
+  const fileInput = document.getElementById('paymentFile');
+  const file = fileInput.files[0];
+
+  const formData = new FormData();
+  formData.append('payment_mode', paymentMode);
+  formData.append('file', file);
+
+  fetch(`/payment/make_payment/${orderId}`, {
+    method: 'POST',
+    body: formData
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      console.log('支付成功，支付ID:', data.payment_id);
+      alert('支付成功！');
+      closeModal();
+      window.location.reload();
+
+    } else {
+      alert('支付失败: ' + data.message);
+    }
+  })
+  .catch(err => {
+    console.error('请求错误', err);
+    alert('请求失败，请重试');
+  });
+}
+
+
+function do_cash_payment(orderId) {
+  // 移除旧 modal
+  const existingModal = document.getElementById('cashPaymentModal');
+  if (existingModal) existingModal.remove();
+
+  // 获取所有用户数据
+  fetch('/user_control/get_all_user_data')
+    .then(res => res.json())
+    .then(allUsers => {
+      // 构建用户表格行（不再区分 isMe）
+      const rows = allUsers
+        .filter(user => user.display_name != null)
+        .map(user => `
+          <tr>
+            <td>${user.display_name}</td>
+            <td>${user.phone}</td>
+          </tr>
+        `).join('');
+
+      const modalHtml = `
+        <div class="modal" id="bankTransferModal">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">选择用户（现金支付）</h5>
+                <button type="button" class="modal-close" onclick="closeModal()">×</button>
+              </div>
+              <div class="modal-body">
+                <table class="user-table">
+                  <thead>
+                    <tr>
+                      <th>用户昵称</th>
+                      <th>手机号</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${rows}
+                  </tbody>
+                </table>
+              </div>
+              <div class="modal-footer">
+                <button class="btn-confirm" onclick="set_cash_payment('${orderId}')">锁定支付</button>
+                <button class="btn-cancel" onclick="closeModal()">关闭</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    })
+    .catch(error => {
+      console.error('加载用户数据失败', error);
+      alert('无法加载用户信息');
+    });
+}
+function download_order_detail() {
+  const url = `/payment/download_quotiton/${orderId}`;
+  
+  fetch(url)
+    .then(response => {
+      if (!response.ok) throw new Error('下载失败');
+      return response.blob();
+    })
+    .then(blob => {
+      const link = document.createElement('a');
+      const url = window.URL.createObjectURL(blob);
+      link.href = url;
+      link.download = `order_${orderId}_quotation.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+      alert('下载出错: ' + err.message);
+    });
+}
+
+</script>
+
+{% endblock %}

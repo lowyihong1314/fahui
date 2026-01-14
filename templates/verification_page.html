@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}手机认证{% endblock %}
+
+{% block content %}
+<style>
+/* 验证容器样式 */
+#verify_container {
+  max-width: 360px;
+  margin: 60px auto;
+  padding: 25px 30px;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  animation: fadeInUp 0.6s ease;
+}
+
+/* 标题 */
+#verify_container h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin-bottom: 15px;
+  background: linear-gradient(90deg, var(--title-color), var(--title-color-right));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 提示文字 */
+#verify_container p {
+  color: var(--text-color);
+  margin-bottom: 15px;
+}
+
+/* 输入框 */
+#verify_container input[type="text"] {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 1em;
+  outline: none;
+  transition: all 0.3s ease;
+}
+#verify_container input[type="text"]:focus {
+  border-color: var(--title-color);
+  box-shadow: 0 0 6px rgba(0, 124, 240, 0.2);
+}
+
+/* 按钮通用 */
+#verify_container button {
+  width: 100%;
+  padding: 10px 14px;
+  margin-top: 12px;
+  font-size: 1em;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--button-text-color);
+  transition: all 0.3s ease;
+  transform: translateY(0);
+}
+
+/* 发送按钮 */
+#sendCodeBtn {
+  background: var(--edit-button-bg);
+}
+#sendCodeBtn:hover {
+  background: var(--edit-button-bg-hover);
+  transform: translateY(-2px);
+}
+
+/* 验证按钮 */
+#verifyBtn {
+  background: var(--save-button-bg);
+}
+#verifyBtn:hover {
+  background: var(--save-button-bg-hover);
+  transform: translateY(-2px);
+}
+
+/* 错误或提示消息 */
+#message {
+  margin-top: 10px;
+  font-size: 0.9em;
+  color: var(--ping-color);
+  min-height: 20px;
+  transition: opacity 0.3s ease;
+}
+
+/* 容器淡入动画 */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+</style>
+
+<div id="verify_container">
+  <h2>手机认证</h2>
+  <p>请验证手机号：<strong>{{ phone_number }}</strong></p>
+  <strong>如果无法跳转直接拨打:</strong>
+  <phone onclick="submit_secret_code()">+601136600057</phone>
+
+  <div id="message"></div>
+
+  <button id="sendCodeBtn">发送验证码</button>
+
+  <div id="verifySection" style="display:none; margin-top:20px;">
+    <input type="text" id="otpInput" placeholder="请输入验证码" maxlength="6" />
+    <button id="verifyBtn">验证</button>
+  </div>
+  <small id="your_ip"></small>
+</div>
+
+<script>
+const phone_number = "{{ phone_number }}";
+const order_id = "{{ order_id }}";
+
+async function submit_secret_code() {
+  const secret_code = prompt("请输入密钥:");
+
+  if (!secret_code) {
+    alert("密钥不能为空");
+    return;
+  }
+
+  try {
+    const response = await fetch("/twilio_service/submit_secret_code", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        order_id: order_id,
+        secret_code: secret_code
+      })
+    });
+
+    const data = await response.json();
+    const messageDiv = document.getElementById("message");
+
+    if (data.status === "success") {
+      messageDiv.style.color = "green";
+      messageDiv.textContent = "验证成功，正在跳转...";
+      window.location.href = `/template/fahui_input/${order_id}`;
+    } else {
+      messageDiv.style.color = "red";
+      messageDiv.textContent = data.message || "验证失败";
+    }
+  } catch (err) {
+    console.error("请求出错:", err);
+    alert("网络错误，请稍后再试");
+  }
+}
+const sendCodeBtn = document.getElementById('sendCodeBtn');
+const verifySection = document.getElementById('verifySection');
+const verifyBtn = document.getElementById('verifyBtn');
+const otpInput = document.getElementById('otpInput');
+const messageDiv = document.getElementById('message');
+
+sendCodeBtn.addEventListener('click', async () => {
+  messageDiv.textContent = '';
+  sendCodeBtn.disabled = true;
+  sendCodeBtn.textContent = '发送中...';
+
+  try {
+    const res = await fetch('/twilio_service/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_id })  // 只传 order_id
+    });
+
+    const data = await res.json();
+    if (data.status === 'success') {
+      messageDiv.style.color = 'green';
+      messageDiv.textContent = data.message;
+      verifySection.style.display = 'block';
+      sendCodeBtn.style.display = 'none';
+    } else {
+      messageDiv.style.color = 'red';
+      messageDiv.textContent = data.message || '发送失败';
+      sendCodeBtn.disabled = false;
+      sendCodeBtn.textContent = '发送验证码';
+    }
+  } catch (err) {
+    messageDiv.style.color = 'red';
+    messageDiv.textContent = '网络错误，请稍后再试';
+    sendCodeBtn.disabled = false;
+    sendCodeBtn.textContent = '发送验证码';
+  }
+});
+
+verifyBtn.addEventListener('click', async () => {
+  messageDiv.textContent = '';
+  const otp = otpInput.value.trim();
+
+  if (!otp || otp.length !== 6) {
+    messageDiv.style.color = 'red';
+    messageDiv.textContent = '请输入有效的6位验证码';
+    return;
+  }
+
+  verifyBtn.disabled = true;
+  verifyBtn.textContent = '验证中...';
+
+  try {
+    const res = await fetch('/twilio_service/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ otp })
+    });
+
+    const data = await res.json();
+
+    if (data.status === 'success') {
+      messageDiv.style.color = 'green';
+      messageDiv.textContent = '验证成功，正在跳转...';
+      window.location.href = `/template/fahui_input/${order_id}`;
+
+    } else {
+      messageDiv.style.color = 'red';
+      messageDiv.textContent = data.message || '验证码错误';
+      verifyBtn.disabled = false;
+      verifyBtn.textContent = '验证';
+    }
+
+  } catch (err) {
+    messageDiv.style.color = 'red';
+    messageDiv.textContent = '网络错误，请稍后再试';
+    verifyBtn.disabled = false;
+    verifyBtn.textContent = '验证';
+  }
+});
+
+async function showIpFlag(ip) {
+  try {
+    // 调用 ipwhois 获取国家信息
+    const res = await fetch(`https://ipwho.is/${ip}`);
+    const data = await res.json();
+
+    if (data.success && data.country_code) {
+      // 把国家代码转成国旗 emoji
+      const flag = countryCodeToFlagEmoji(data.country_code);
+      document.getElementById("your_ip").textContent = `${ip} ${flag}|${order_id}`;
+    } else {
+      document.getElementById("your_ip").textContent = `${ip} 🌐|${order_id}`;
+    }
+  } catch (e) {
+    document.getElementById("your_ip").textContent = `${ip} 🌐|${order_id}`;
+  }
+}
+
+// 辅助函数：国家代码 → emoji 国旗
+function countryCodeToFlagEmoji(countryCode) {
+  return countryCode
+    .toUpperCase()
+    .replace(/./g, char => 
+      String.fromCodePoint(127397 + char.charCodeAt())
+    );
+}
+
+// 页面加载后执行
+document.addEventListener("DOMContentLoaded", () => {
+  const ip = "{{ip}}"; // 模板渲染进来的值
+  showIpFlag(ip);
+});
+
+</script>
+
+{% endblock %}

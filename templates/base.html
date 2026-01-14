@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}UTBA{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+    <link rel="icon" href="{{ url_for('static', filename='images/logo/logo.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/navbar.css') }}">
+</head>
+<body data-theme="">
+    <nav id="navbar">
+        <div class="container">
+            <a href="/">
+                <img src="{{ url_for('static', filename='images/logo/logo.png') }}" alt="UTBA" class="logo">
+            </a>
+            <div id="nav_select_list">
+                <ul>
+                    <li><a class="nav-link" href="/"><i class="fa-solid fa-house"></i></a></li>
+                </ul>
+            </div>
+            <div id="contorl_panel">
+            </div>
+        </div>
+    </nav>
+    <div id='base_container'>
+        {% block content %}
+        {% endblock %}
+      </div>
+      <small id="ping_ms">404</small>
+      <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+      <script src="{{ url_for('static', filename='js/get_label_cn.js') }}"></script>
+      <script src="{{ url_for('static', filename='js/show_alert.js') }}"></script>
+
+<script>
+let ms = 0;
+let user_data = null;
+let PushNotification = [];
+
+document.addEventListener('DOMContentLoaded', async function () {
+    await fetchUserData();
+});
+
+async function fetchUserData() {
+    const navSelectUl = document.getElementById('nav_select_list');
+    navSelectUl.innerHTML = '';
+
+    // 添加首页链接
+    const homeLink = document.createElement('li');
+    homeLink.innerHTML = '<a class="nav-link" href="/"><i class="fa-solid fa-house"></i></a>';
+    navSelectUl.appendChild(homeLink);
+
+    try {
+        const startTime = performance.now();
+        const response = await fetch('/user_control/get_user_data', {
+            method: 'GET',
+            credentials: 'include'
+        });
+        const endTime = performance.now();
+        const ms = Math.round(endTime - startTime);
+
+        if (!response.ok) throw new Error('网络响应不是OK');
+
+        const user_data = await response.json();
+
+        const { username, id: userId } = user_data;
+
+        update_navbar(user_data, ms);
+        initSocket(username, userId);
+        if (typeof username === 'string' && username.trim() !== '') {
+            // 已登录
+            const loginTrueLink = document.createElement('li');
+            loginTrueLink.innerHTML = '<a class="nav-link" href="/template/fahui_data"><i class="fas fa-file-invoice"></i></a>';
+            navSelectUl.appendChild(loginTrueLink);
+            
+            const accountingLink = document.createElement('li');
+            accountingLink.innerHTML = '<a class="nav-link" href="/template/accounting" title="做账"><i class="fas fa-book"></i></a>';
+            navSelectUl.appendChild(accountingLink);
+
+            const profileLink = document.createElement('li');
+            profileLink.innerHTML = '<a class="nav-link" href="/template/profile"><i class="fas fa-user"></i></a>';
+            navSelectUl.appendChild(profileLink);
+
+            // 🔹 新增：用户管理入口
+            const userControlLink = document.createElement('li');
+            userControlLink.innerHTML = '<a class="nav-link" href="/template/user_control" title="用户管理"><i class="fas fa-users-cog"></i></a>';
+            navSelectUl.appendChild(userControlLink);
+
+            const scanBarcodeLink = document.createElement('li');
+            scanBarcodeLink.innerHTML = '<a class="nav-link" href="/template/scan_barcode" title="扫码"><i class="fas fa-barcode"></i></a>';
+            navSelectUl.appendChild(scanBarcodeLink);
+            
+        } else {
+            throw new Error('未登录：用户名无效');
+        }
+
+
+    } catch (error) {
+        console.warn('获取用户数据失败或未登录:', error);
+        const loginFalseLink = document.createElement('li');
+        loginFalseLink.innerHTML = '<a class="nav-link" href="/user_control/login"><i class="fas fa-right-to-bracket"></i></a>';
+        navSelectUl.appendChild(loginFalseLink);
+    }
+}
+
+
+function initSocket(username, userId) {
+    const socket = io("https://fahui.utbabuddha.com",{
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+    });
+
+    socket.on('connect', () => {
+        console.log('Socket connected:', socket.id);
+        if (username) {
+            socket.emit('join_room', { room: username, user_id: userId });
+        }
+    });
+
+    socket.on('notice', (data) => {
+        console.log(`收到通知:`, data);
+        get_PushNotification?.(); // 防止未定义错误
+        Pushpopup?.(data.msg);
+    });
+
+    socket.on('online_users', (list) => {
+        console.log('在线用户列表:', list);
+    });
+}
+
+
+function show_status_mask(status, message = "loading") {
+  const existing = document.getElementById('status-mask');
+
+  if (status === 'loading') {
+    if (existing) return; // 已存在则不重复添加
+
+    const mask = document.createElement('div');
+    mask.id = 'status-mask';
+
+    const logo = document.createElement('img');
+    logo.src = '/static/images/logo/logo.png';
+    logo.alt = 'Loading...';
+    logo.className = 'loading-logo';
+
+    // 👇 增加提示文字
+    const msg = document.createElement('div');
+    msg.className = 'loading-message';
+    msg.textContent = message;
+
+    mask.appendChild(logo);
+    mask.appendChild(msg);
+    document.body.appendChild(mask);
+
+  } else if (status === 'success' && existing) {
+    existing.remove();
+  }
+}
+
+
+function Pushpopup(message) {
+  const popup = document.createElement('div');
+  popup.className = 'push-popup';
+  popup.textContent = message;
+
+  document.body.appendChild(popup);
+
+  // 保存当前标题
+  const originalTitle = document.title;
+  document.title = message;
+
+  // 设置点击事件恢复标题（只触发一次）
+  const restoreTitle = () => {
+    document.title = originalTitle;
+    document.removeEventListener('click', restoreTitle);
+  };
+  document.addEventListener('click', restoreTitle);
+
+  // 展开动画
+  requestAnimationFrame(() => {
+    popup.classList.add('show');
+  });
+
+  // 3 秒后关闭弹窗
+  setTimeout(() => {
+    popup.classList.remove('show');
+    popup.classList.add('fade-out');
+    setTimeout(() => popup.remove(), 300);
+  }, 3000);
+}
+
+
+function update_navbar(userData, ms) {
+
+  const nameToShow = userData.display_name || userData.username || 'Visitors';
+
+  // 更新 <body> 的 data-theme 属性，使用 user_theme
+  if (userData.user_theme) {
+    document.body.setAttribute('data-theme', userData.user_theme);
+  }
+
+  // 更新 ping_ms 文本
+  const pingElem = document.getElementById('ping_ms');
+  if (pingElem) {
+    pingElem.textContent = `${nameToShow}:${ms}`;
+  }
+}
+
+
+
+    </script>
+    
+</body>
+</html>

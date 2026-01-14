@@ -1,0 +1,1254 @@
+{% extends "base.html" %}
+
+{% block title %}法会后台{% endblock %}
+
+{% block content %}
+<style>
+/* 版本选择框样式 */
+#select_version {
+  margin: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+}
+
+#version_list {
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background-color: var(--nav-bg-color);
+  color: var(--nav-link-color);
+  font-size: 16px;
+}
+
+#version_list:focus {
+  border-color: var(--title-color);
+}
+
+#search_input {
+  padding: 10px;
+  width: 250px;
+  border: 1px solid var(--border-color);
+  background-color: var(--border-color);
+  border-radius: 5px;
+  font-size: 16px;
+  color: var(--text-color);
+}
+
+#search_input::placeholder {
+  color: var(--text-color);
+}
+
+#search_input:focus {
+  border-color: var(--title-color);
+}
+
+/* 表格样式 */
+#all_data_container {
+  margin: 20px;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+#button_list {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+#button_list button {
+  padding: 10px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  background-color: var(--nav-bg-color);
+  color: var(--nav-link-color);
+  cursor: pointer;
+  margin: 0 5px;
+}
+
+#button_list button:disabled {
+  background-color: var(--border-color);
+  color: var(--text-color);
+  cursor: not-allowed;
+}
+
+#button_list button:hover:not(:disabled) {
+  background-color: var(--title-color);
+  color: var(--button-text-color);
+}
+/* 外层容器 */
+#all_data_table {
+  margin: auto;
+  max-width: 1600px;
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--bg-color);
+}
+
+/* 表格基础样式 */
+#all_data_table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  color: var(--text-color);
+}
+
+/* 表头 */
+#all_data_table thead th {
+  background-color: var(--nav-bg-color);
+  color: var(--nav-link-color);
+  text-align: left;
+  padding: 10px;
+  border-bottom: 2px solid var(--border-color);
+  font-weight: 600;
+}
+
+/* 表格内容 */
+#all_data_table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* 鼠标 hover 效果 */
+#all_data_table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+#all_data_table tbody tr:hover {
+  background-color: var(--nav-bg-color);
+}
+
+/* ID 列 */
+#all_data_table .id {
+  font-weight: bold;
+  color: var(--title-color);
+}
+
+/* 状态列样式 */
+#all_data_table .status {
+  font-weight: 600;
+}
+#all_data_table .status::first-letter {
+  text-transform: uppercase;
+}
+
+/* 状态颜色（可选） */
+#all_data_table .status.not-ready {
+  color: var(--delete-button-bg); /* 红色 */
+}
+#all_data_table .status.paid {
+  color: var(--save-button-bg); /* 绿色 */
+}
+
+
+/* 平滑过渡：表格加载时的渐现效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 应用渐现动画 */
+#all_data_table {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* 控制面板按钮 */
+.control_panel_button {
+  padding: 10px 20px;
+  font-size: 16px;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background-color 0.3s ease, transform 0.3s ease; /* 平滑过渡 */
+  display: inline-flex;
+  align-items: center;
+  gap: 8px; /* 图标和文本之间的间距 */
+}
+
+/* "ON" 状态按钮 */
+.control_panel_button.on {
+  background-color: var(--save-button-bg);  /* 使用定义的颜色变量 */
+  color: var(--button-text-color);  /* 设置文本颜色 */
+}
+
+/* "ON" 状态按钮 */
+.control_panel_button.off {
+  background-color: var(--delete-button-bg);  /* 使用定义的颜色变量 */
+  color: var(--button-text-color);  /* 设置文本颜色 */
+}
+
+/* 鼠标悬停时的效果 */
+.control_panel_button:hover {
+  opacity: 0.8;
+}
+
+/* 控制面板样式 */
+.control_panel {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 20px;
+}
+
+/* 浮动面板样式 */
+.floating_panel {
+  display: none; /* 默认隐藏 */
+  position: fixed;
+  top: 50px;
+  left: 50%;
+
+  transform: translateX(-50%);
+  width: 400px;
+  background-color: var(--bg-color);
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px var(--nav-link-color);
+  z-index: 1000;
+  cursor: move; /* 可拖动 */
+}
+
+.panel_body{
+  max-height: 60vh;
+  overflow-y: auto;
+}
+/* 面板头部样式 */
+.panel_header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  cursor: move; /* 鼠标悬停时显示拖动指示 */
+}
+
+/* Modal 背景 */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* 灰色背景 */
+  transition: all 0.3s ease;
+}
+
+/* Modal 内容 */
+.modal-content {
+  background-color: var(--bg-color);
+  margin: 10% auto;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  width: 60%;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  transition: transform 0.3s ease-in-out;
+}
+
+#order_details{
+  max-height: 600px;
+  overflow-y: auto;
+}
+/* 关闭按钮 */
+.close {
+  color: var(--text-color);
+  font-size: 30px;
+  font-weight: bold;
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+  color: var(--title-color);
+}
+
+/* 关闭按钮样式 */
+#close_button {
+  background-color: var(--save-button-bg);
+  color: var(--button-text-color);
+  border: none;
+  padding: 10px 20px;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background-color 0.3s;
+}
+
+#close_button:hover {
+  background-color: var(--save-button-bg-hover);
+}
+
+/* 使得 modal 的显示效果更流畅 */
+.modal-content {
+  transform: translateY(-50px);
+}
+
+.modal.show .modal-content {
+  transform: translateY(0);
+}
+
+/* 多选列表样式 */
+#multi_selection_list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 8px;
+}
+
+#multi_selection_list a {
+  display: block;
+  padding: 6px;
+  color: var(--nav-link-color);
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+#multi_selection_list a:hover {
+  background-color: var(--nav-bg-color);
+  color: var(--nav-link-hover-color);
+}
+
+/* 底部面板 */
+.panel_footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 5px;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-color);
+}
+
+/* 按钮通用样式 */
+.panel_footer button {
+  padding: 6px ;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--button-text-color);
+  transition: background-color 0.2s ease;
+}
+
+/* Clear All / Delete All 按钮 */
+.clear_all_button {
+  background-color: var(--delete-button-bg);
+}
+.clear_all_button:hover {
+  background-color: var(--delete-button-bg-hover);
+}
+
+/* Print All 按钮 */
+.print_all_button {
+  background-color: var(--save-button-bg);
+}
+.print_all_button:hover {
+  background-color: var(--save-button-bg-hover);
+}
+
+/* Select Page 按钮 */
+.select_page {
+  background-color: var(--edit-button-bg);
+}
+.select_page:hover {
+  background-color: var(--edit-button-bg-hover);
+}
+
+/* 按钮容器 */
+.order_details_buttonContainer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 1em;
+}
+
+/* 通用按钮 */
+.order_details_btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--button-text-color);
+  background-color: var(--edit-button-bg); /* 默认蓝色 */
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+/* hover 效果 */
+.order_details_btn:hover {
+  background-color: var(--edit-button-bg-hover);
+  transform: translateY(-1px);
+}
+
+/* “上一条 / 下一条” 按钮 → 蓝色（导航用） */
+.order_details_btn:nth-child(1),
+.order_details_btn:nth-child(2) {
+  background-color: var(--edit-button-bg);
+}
+.order_details_btn:nth-child(1):hover,
+.order_details_btn:nth-child(2):hover {
+  background-color: var(--edit-button-bg-hover);
+}
+
+/* “Detail” 按钮 → 绿色（查看/确认） */
+.order_details_btn:nth-child(3) {
+  background-color: var(--save-button-bg);
+}
+.order_details_btn:nth-child(3):hover {
+  background-color: var(--save-button-bg-hover);
+}
+
+/* “Close” 按钮 → 红色（关闭/删除） */
+.order_details_btn:nth-child(4) {
+  background-color: var(--delete-button-bg);
+}
+.order_details_btn:nth-child(4):hover {
+  background-color: var(--delete-button-bg-hover);
+}
+
+
+/* 作用于 order_details 区域 */
+#order_details {
+  overflow-y: auto; /* 确保出现滚动条 */
+  scrollbar-width: thin; /* Firefox: 瘦一点 */
+  scrollbar-color: var(--nav-link-hover-color) var(--nav-bg-color); /* Firefox: 滚动条颜色 */
+}
+
+/* Chrome / Edge / Safari 定制滚动条 */
+#order_details::-webkit-scrollbar {
+  width: 8px; /* 垂直滚动条宽度 */
+  height: 8px; /* 水平滚动条高度 */
+}
+
+#order_details::-webkit-scrollbar-track {
+  background: var(--nav-bg-color); /* 滚动条轨道颜色 */
+  border-radius: 4px;
+}
+
+#order_details::-webkit-scrollbar-thumb {
+  background-color: var(--nav-link-hover-color); /* 滚动条滑块颜色 */
+  border-radius: 4px;
+}
+
+#order_details::-webkit-scrollbar-thumb:hover {
+  background-color: var(--title-color); /* hover 更明显 */
+}
+
+#cart_data {
+  max-width: 900px;
+  margin: auto;
+  display: block;
+  text-align: center;
+  color: var(--text-color);
+}
+
+.panding {
+  color: var(--edit-button-bg);
+}
+
+.approve {
+  color: var(--save-button-bg);
+}
+#download-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 16px;
+  z-index: 9999;
+}
+
+.progress-bar {
+  width: 300px;
+  height: 20px;
+  border: 1px solid #ccc;
+  background: #333;
+  margin-top: 10px;
+}
+
+.progress {
+  height: 100%;
+  width: 0%;
+  background: #4caf50;
+  transition: width 0.2s;
+}
+
+</style>
+
+<h2 id="template_title" class="template_title">法会后台</h2>
+
+<div id="select_version">
+    <input id="search_input" type="text" oninput="search_orders_data()" placeholder="搜索订单...">
+    <select id="version_list" onchange="get_orders_data(this.value)">
+        <option value="">请选择版本</option>
+    </select>
+</div>
+
+<div id="all_data_container">
+    <div class="control_panel">
+        <button id="change_selection_button" onclick="change_selection_mode()" class="control_panel_button on">
+            <i class="fa" id="mode_icon">&#xf04b;</i> <!-- 使用 FontAwesome 图标 -->
+            <span id="mode_text">ON</span> <!-- 按钮文本 -->
+        </button>
+        <button id="export_excel_button" class="control_panel_button" onclick="exportExcel()">Export Excel</button>
+    </div>
+
+    <div id="button_list"></div>
+    <div id="all_data_table"></div>
+</div>
+
+<div id="floating_panel" class="floating_panel">
+    <div id="panel_header" class="panel_header">
+        <span>Multi-Selection Data</span>
+    </div>
+    <div id="panel_body" class="panel_body">
+        <!-- 多选数据内容显示 -->
+        <ul id="multi_selection_list">
+            <!-- 动态显示的内容 -->
+        </ul>
+    </div>
+    <div class="panel_footer">
+        <button onclick="clear_all()" class="clear_all_button">Clear All</button>
+        <button onclick="print_all()" class="print_all_button">Print All</button>
+        <button onclick="select_page()" class="select_page">Select Page</button>
+        <button onclick="select_full()" class="select_page">Select Full</button>
+        <button onclick="delete_all()" class="clear_all_button">Delete All</button>
+    </div>
+</div>
+<div id="cart_data">
+  <canvas id="cart_chart" width="400" height="200"></canvas>
+  <p id="cart_total"></p>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Modal -->
+<div id="order_modal" class="modal">
+  <div class="modal-content">
+    <span id="close_modal" class="close">&times;</span>
+    <div id="order_details"></div>
+  </div>
+</div>
+
+  <div id="download-overlay" style="display:none;"></div>
+
+<script>
+
+function exportExcel() {
+    // 获取下拉框选中的 version
+    const version = document.getElementById('version_list').value;
+    
+    // 构建下载 URL，如果没有选择 version 就不加参数
+    let url = '/api/export_orders';
+    if (version) {
+        url += '?version=' + encodeURIComponent(version);
+    }
+
+    // 跳转下载
+    window.location.href = url;
+}
+
+function generate_cart(orders) {
+    // 1. 汇总所有商品：{ code: { name, count, totalPrice } }
+    const itemMap = {};
+
+    orders.forEach(order => {
+        order.order_items.forEach(item => {
+            const code = item.code;
+            const price = Number(item.price) || 0; // 强制转数字
+            const name = get_fahui_type(code);
+
+            if (!itemMap[code]) {
+                itemMap[code] = { name: name, count: 0, totalPrice: 0 };
+            }
+            itemMap[code].count += 1;
+            itemMap[code].totalPrice += price;
+        });
+    });
+
+    // 2. 准备图表数据
+    const labels = Object.values(itemMap).map(v => v.name + ` (${v.count}个)`); // 显示数量
+    const values = Object.values(itemMap).map(v => v.totalPrice);
+
+    // 3. 总金额
+    const totalAmount = values.reduce((sum, v) => sum + v, 0);
+    const totalCount = Object.values(itemMap).reduce((sum, v) => sum + v.count, 0);
+
+    document.getElementById('cart_total').textContent = `总数量: ${totalCount}，总金额: ${totalAmount}`;
+
+    // 4. 生成图表
+    const ctx = document.getElementById('cart_chart').getContext('2d');
+    if(window.cartChart) window.cartChart.destroy();
+
+    window.cartChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: '金额',
+                data: values,
+                backgroundColor: labels.map(() => `rgba(${Math.floor(Math.random()*255)}, ${Math.floor(Math.random()*255)}, ${Math.floor(Math.random()*255)}, 0.6)`),
+                borderColor: 'rgba(33, 150, 243, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: true }
+            },
+            scales: {
+                y: { beginAtZero: true, title: { display: true, text: '金额' } },
+                x: { title: { display: true, text: '项目' } }
+            }
+        }
+    });
+}
+
+function delete_all() {
+    const confirmation = prompt('危险操作！请输入 DELETE_ALL 来确认删除所有选中的数据：');
+
+    if (confirmation !== 'DELETE_ALL') {
+        alert('输入错误，操作已取消。');
+        return;
+    }
+
+    fetch('/api/delete_orders', {   // ✅ 改成 delete_orders
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            data: multi_selection_data  // ✅ 还是传 data，后端 delete_orders 能正确解析
+        })
+    })
+    .then(response => response.json())
+    .then(result => {
+        if (result.status === 'delete successfully') {
+            alert('删除成功');
+        } else {
+            alert('删除失败：' + (result.message || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('请求出错');
+    });
+}
+
+function select_full() {
+  // 遍历所有页的数据
+  for (let page in all_orders_data) {
+    all_orders_data[page].forEach(order => {
+      add_to_selection_data(order.id, order.customer_name);
+    });
+  }
+}
+
+function select_page() {
+  const table = document.querySelector('#all_data_table table');
+  if (!table) return;
+
+  const rows = table.querySelectorAll('tbody tr');
+
+  rows.forEach(row => {
+    // 通过 class 选对应的单元格
+    const idCell = row.querySelector('td.id');
+    const customerNameCell = row.querySelector('td.customer_name');
+
+    if (idCell && customerNameCell) {
+      const id = idCell.innerText.trim();
+      const customer_name = customerNameCell.innerText.trim();
+
+      add_to_selection_data(id, customer_name);
+    }
+  });
+}
+
+    // 使用 fetch 从 API 获取版本列表
+    function fetchVersionList() {
+        fetch('/api/get_version_list')  // 调用接口获取版本列表
+            .then(response => response.json())  // 将响应转换为 JSON
+            .then(data => {
+                // 调用填充函数来填充选择框
+                populateVersionList(data);
+                
+                // 获取返回数据中的第一个版本
+                const start_version = data[1];  // 使用 data[0].version 获取第一个版本
+                get_orders_data(start_version);  // 获取该版本的数据
+            })
+            .catch(error => {
+                console.error('获取版本列表失败:', error);
+            });
+    }
+
+    // 将版本列表填充到 select 元素中
+    function populateVersionList(versionList) {
+        const selectElement = document.getElementById('version_list');
+        selectElement.innerHTML = ''; // 清空当前的列表
+        selectElement.innerHTML = '<option value="">请选择版本</option>'; // 添加默认提示项
+
+        versionList.forEach(item => {
+            const option = document.createElement('option');
+            option.value = item;
+            option.textContent = item;
+            selectElement.appendChild(option);
+        });
+    }
+
+    let now_version = [];
+
+    // 当选择版本时调用的函数
+function get_orders_data(version) {
+    if (version) {
+        now_version = version;
+        console.log('选择的版本是: ', now_version);
+
+        // 更新标题内容
+        const titleEl = document.getElementById('template_title');
+        if (titleEl) {
+            titleEl.textContent = `法会系统 - ${now_version}`;
+        }
+
+        search_orders_data(); // 执行搜索逻辑
+    } else {
+        console.log('没有选择版本');
+    }
+}
+
+let all_orders_data = {};  // 用对象存储每一页的数据 {page_number: [data]}，每一页数据是一个数组
+let current_page = 1; // 当前页面，默认从第一页开始
+const data_per_page = 10; // 每页显示的数据条数
+
+let searchTimeout = null;
+let activeSearchId = 0; // 每次搜索增加，确保只处理最后一次结果
+
+function search_orders_data() {
+    const searchInput = document.getElementById('search_input').value;
+    console.log('搜索内容:', searchInput);
+
+    // 清掉上一次的延迟
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+
+    searchTimeout = setTimeout(() => {
+        const thisSearchId = ++activeSearchId; // 给每次请求编号
+
+        fetch(`/api/search_orders_data?version=${now_version}&value=${encodeURIComponent(searchInput)}`)
+            .then(response => response.json())
+            .then(data => {
+                // 只处理最后一次请求的结果
+                if (thisSearchId !== activeSearchId) {
+                    console.log("⚠️ 忽略过时的搜索结果");
+                    return;
+                }
+
+                console.log('返回的数据:', data);
+                current_page = 1;
+                paginateData(data);
+                generate_page_list();
+                generate_cart(data);
+                generate_data_table(all_orders_data[current_page]);
+            })
+            .catch(error => {
+                if (thisSearchId === activeSearchId) {
+                    console.error('获取订单数据失败:', error);
+                }
+            });
+    }, 500); // ✅ 500ms 防抖，用户停止输入后才触发
+}
+// 分页数据并存储到 all_orders_data 中
+function paginateData(data) {
+    const total_pages = Math.ceil(data.length / data_per_page); // 计算总页数
+    all_orders_data = {}; // 清空旧数据
+
+    for (let page = 1; page <= total_pages; page++) {
+        const start = (page - 1) * data_per_page;
+        const end = page * data_per_page;
+        all_orders_data[page] = data.slice(start, end); // 存储每页的数据
+    }
+}
+
+// 生成分页按钮
+function generate_page_list() {
+    const total_pages = Object.keys(all_orders_data).length; // 分页数量
+    let total_items = 0;
+
+    for (let page in all_orders_data) {
+        total_items += all_orders_data[page].length;
+    }
+    const buttonList = document.getElementById('button_list');
+    buttonList.innerHTML = ''; // 清空现有的按钮
+
+    // 显示总数
+    const totalLabel = document.createElement('span');
+    totalLabel.innerText = `总共 ${total_items} 组数据`;
+    totalLabel.style.marginRight = '10px';
+    buttonList.appendChild(totalLabel);
+
+    // 创建 "Prev" 按钮
+    const prevButton = document.createElement('button');
+    prevButton.innerText = 'Prev';
+    prevButton.disabled = current_page === 1;
+    prevButton.addEventListener('click', () => changePage(current_page - 1));
+    buttonList.appendChild(prevButton);
+
+    // 创建分页按钮
+    for (let i = 1; i <= total_pages; i++) {
+        const pageButton = document.createElement('button');
+        pageButton.innerText = i;
+        pageButton.disabled = i === current_page;
+        pageButton.addEventListener('click', () => changePage(i));
+        buttonList.appendChild(pageButton);
+    }
+
+    // 创建 "Next" 按钮
+    const nextButton = document.createElement('button');
+    nextButton.innerText = 'Next';
+    nextButton.disabled = current_page === total_pages;
+    nextButton.addEventListener('click', () => changePage(current_page + 1));
+    buttonList.appendChild(nextButton);
+}
+
+
+// 切换页面
+function changePage(page) {
+    if (page < 1 || page > Object.keys(all_orders_data).length) return; // 如果页面不合法则返回
+
+    current_page = page;
+    generate_data_table(all_orders_data[current_page]); // 重新生成表格
+    generate_page_list(); // 更新分页按钮
+}
+
+let multi_selection = false;
+
+function change_selection_mode() {
+  toggle_floating_panel();
+  // 切换 multi_selection 状态
+  multi_selection = !multi_selection;
+  console.log(multi_selection);
+
+  // 获取按钮元素和文本
+  const button = document.getElementById('change_selection_button');
+  const modeText = document.getElementById('mode_text');
+  const modeIcon = document.getElementById('mode_icon');
+
+  // 根据 multi_selection 的值更新按钮的文本和样式
+  if (multi_selection) {
+    modeText.textContent = 'OFF';
+    modeIcon.innerHTML = '&#xf00d;'; // 更改图标为“X”表示 OFF
+    button.classList.remove('on');
+    button.classList.add('off');
+  } else {
+    modeText.textContent = 'ON';
+    modeIcon.innerHTML = '&#xf04b;'; // 更改图标为“勾”表示 ON
+    button.classList.remove('off');
+    button.classList.add('on');
+  }
+
+  // 更新表格中每一行的 onclick 内容
+  const rows = document.querySelectorAll('#all_data_table tbody tr');
+  rows.forEach(row => {
+    const orderId = row.querySelector('td').textContent; // 假设第一列是订单 ID
+    const customerName = row.querySelector('td:nth-child(4)').textContent; // 假设第四列是客户姓名
+
+    if (multi_selection) {
+      // 如果是多选模式，更新为 add_to_selection_data()
+      row.setAttribute('onclick', `add_to_selection_data(${orderId}, '${customerName}')`);
+    } else {
+
+      row.setAttribute('onclick', `show_detail(${orderId}, '${customerName}')`);
+    }
+  });
+}
+
+function toggle_floating_panel() {
+  const panel = document.getElementById('floating_panel');
+  // 切换浮动面板的显示和隐藏
+  if (panel.style.display === 'none' || panel.style.display === '') {
+    panel.style.display = 'block';
+    generate_floating_detail();
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+function generate_floating_detail() {
+    const list = document.getElementById('multi_selection_list');
+    // 清空现有列表
+    list.innerHTML = '';
+
+    // 填充多选数据
+    multi_selection_data.forEach(item => {
+        // 创建一个 <a> 元素作为列表项
+        const listItem = document.createElement('a');
+        
+        // 设置文本内容
+        listItem.textContent = `${item.customer_name} (ID: ${item.id})`;
+
+        // 设置 <a> 的样式
+        listItem.href = "#";  // 防止页面跳转
+        listItem.style.cursor = 'pointer';  // 显示为指针样式
+
+
+        listItem.addEventListener('click', function(event) {
+            event.preventDefault(); // 防止跳转到其他页面
+            show_detail(item.id);
+        });
+
+        // 将创建的 <a> 元素添加到列表中
+        list.appendChild(listItem);
+        
+    });
+}
+
+
+// 清除所有数据并关闭浮动面板
+function clear_all() {
+  multi_selection_data = [];
+  document.getElementById('multi_selection_list').innerHTML = ''; // 清空列表内容
+}
+
+function showOverlay(msg) {
+  const overlay = document.getElementById('download-overlay');
+  overlay.innerHTML = `
+    <div class="loading-message">${msg}</div>
+    <div class="progress-bar"><div class="progress"></div></div>
+  `;
+  overlay.style.display = 'flex';
+}
+
+function updateOverlay(msg, percent) {
+  document.querySelector('#download-overlay .loading-message').innerText = msg;
+  document.querySelector('#download-overlay .progress').style.width = percent + '%';
+}
+
+function hideOverlay() {
+  document.getElementById('download-overlay').style.display = 'none';
+}
+
+function print_all() {
+  const needBarcode = confirm("是否需要生成 barcode？");
+
+  const orderIds = multi_selection_data.map(item => item.id);
+  if (orderIds.length === 0) {
+    alert("没有选择任何订单");
+    return;
+  }
+
+  showOverlay("正在生成，请稍候...");
+
+  fetch('/print_paiwei/generate_by_orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+          order_ids: orderIds,
+          need_barcode: needBarcode
+      })
+  })
+  .then(response => {
+      if (!response.ok) throw new Error("生成失败");
+
+      const contentLength = response.headers.get("content-length");
+      if (!contentLength) {
+          console.warn("后端没返回 content-length，无法显示进度");
+      }
+
+      const total = parseInt(contentLength || "0", 10);
+      let loaded = 0;
+      const chunks = [];
+      const reader = response.body.getReader();
+
+      function read() {
+          return reader.read().then(({ done, value }) => {
+              if (done) {
+                  return new Blob(chunks);
+              }
+              chunks.push(value);
+              loaded += value.length;
+              if (total) {
+                  const percent = ((loaded / total) * 100).toFixed(2);
+                  updateOverlay(`下载进度 ${percent}%`, percent);
+              }
+              return read();
+          });
+      }
+      return read();
+  })
+  .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `paiwei_files.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      hideOverlay();
+  })
+  .catch(error => {
+      console.error('Error:', error);
+      hideOverlay();
+      alert('出错: ' + error.message);
+  });
+}
+
+
+// 使浮动面板可以拖动
+let isDragging = false;
+let offsetX = 0, offsetY = 0;
+
+const panelContent = document.getElementById('floating_panel');
+const panelHeader = document.getElementById('floating_panel');
+
+// 鼠标按下时开始拖动
+panelHeader.onmousedown = (e) => {
+  isDragging = true;
+  offsetX = e.clientX - panelContent.offsetLeft;
+  offsetY = e.clientY - panelContent.offsetTop;
+};
+
+document.onmousemove = (e) => {
+  if (isDragging) {
+    panelContent.style.left = `${e.clientX - offsetX}px`;
+    panelContent.style.top = `${e.clientY - offsetY}px`;
+  }
+};
+
+document.onmouseup = () => {
+  isDragging = false;
+};
+let multi_selection_data = [];
+
+// 生成数据表格
+function generate_data_table(data) {
+    const tableContainer = document.getElementById('all_data_table');
+    tableContainer.innerHTML = ''; // 清空现有的表格
+
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const tbody = document.createElement('tbody');
+
+    // 中文表头，用于显示
+    const headerDisplay = ['ID', '状态', '姓名', '客户姓名', '成员姓名', '电话','总德金', '创建时间'];
+
+    // 对应字段名，用于添加 class
+    const headerKeys = ['id', 'status', 'name', 'customer_name', 'member_name', 'phone', 'total_dedication', 'created_at'];
+
+    // 创建表头
+    const headerRow = document.createElement('tr');
+    headerDisplay.forEach(headerText => {
+        const th = document.createElement('th');
+        th.innerText = headerText;
+        headerRow.appendChild(th);
+    });
+    thead.appendChild(headerRow);
+    table.appendChild(thead);
+
+    // 在循环前，先给每个订单计算 total_dedication
+    data.forEach(order => {
+        if (Array.isArray(order.order_items) && order.order_items.length > 0) {
+            order.total_dedication = order.order_items.reduce((sum, item) => {
+                return sum + Number(item.price || 0);
+            }, 0);
+        } else {
+            order.total_dedication = 0;
+        }
+    });
+
+    data.forEach(order => {
+        const row = document.createElement('tr');
+
+        if (multi_selection) {
+            row.setAttribute('onclick', `add_to_selection_data(${order.id}, '${order.customer_name}')`);
+        } else {
+            row.setAttribute('onclick', `show_detail(${order.id})`);
+        }
+
+        headerKeys.forEach(key => {
+            const td = document.createElement('td');
+            const value = order[key] ?? '';  // 防止 undefined
+            td.innerText = value;
+
+            // 给每个 td 加上对应字段名的 class
+            td.classList.add(key);
+
+            // 如果是 status 字段，再加一个值作为 class
+            if (key === 'status' && value) {
+                td.classList.add(value);
+            }
+
+            row.appendChild(td);
+        });
+
+        tbody.appendChild(row);
+    });
+
+    table.appendChild(tbody);
+    tableContainer.appendChild(table);
+}
+
+
+
+function add_to_selection_data(id, customer_name) {
+    // 检查是否有相同的 ID
+    const existingItem = multi_selection_data.find(item => item.id === id);
+
+    if (existingItem) {
+        // 如果 ID 已存在，则弹出重复提示
+        Pushpopup(`${id} 重复`);
+    } else {
+        // 否则，正常添加数据
+        console.log(`选择了 ID: ${id}, 客户: ${customer_name}`);
+        multi_selection_data.push({ id, customer_name });
+        generate_floating_detail();
+        console.log(multi_selection_data); // 打印选择的数据
+    }
+}
+
+function show_detail(id) {
+    console.log(`查看详情 - ID: ${id}`);
+
+    fetch(`/api/get_order_detail?id=${id}`)
+        .then(response => {
+            if (!response.ok) throw new Error("订单未找到");
+            return response.json();
+        })
+        .then(data => {
+            console.log("订单详细信息：", data);
+
+            const modal = document.getElementById("order_modal");
+            const orderDetailsContainer = document.getElementById("order_details");
+
+            // 清空内容
+            orderDetailsContainer.innerHTML = "";
+
+            // === 按钮容器（最上方） ===
+            const buttonContainer = document.createElement("div");
+            buttonContainer.style.marginBottom = "1em";
+            buttonContainer.className ="order_details_buttonContainer"
+
+            const prevBtn = document.createElement("button");
+            prevBtn.className = "order_details_btn";
+            prevBtn.textContent = "上一条";
+            prevBtn.disabled = !data.prev_id;
+            prevBtn.onclick = () => data.prev_id && show_detail(data.prev_id);
+
+            const nextBtn = document.createElement("button");
+            nextBtn.className = "order_details_btn";
+            nextBtn.textContent = "下一条";
+            nextBtn.disabled = !data.next_id;
+            nextBtn.onclick = () => data.next_id && show_detail(data.next_id);
+
+            const viewBtn = document.createElement("button");
+            viewBtn.className = "order_details_btn";
+            viewBtn.textContent = "Detail";
+            viewBtn.onclick = () => window.location.href = `/template/show_order_detail/${data.id}`;
+
+            const closeBtn = document.createElement("button");
+            closeBtn.className = "order_details_btn";
+            closeBtn.textContent = "Close";
+            closeBtn.onclick = close_modal;
+
+            buttonContainer.appendChild(prevBtn);
+            buttonContainer.appendChild(nextBtn);
+            buttonContainer.appendChild(viewBtn);
+            buttonContainer.appendChild(closeBtn);
+
+            // ✅ 先加按钮到顶部
+            orderDetailsContainer.appendChild(buttonContainer);
+
+            // 客户信息
+            const basicInfo = document.createElement("div");
+            basicInfo.innerHTML = `
+                <p><strong>ID:</strong> ${data.id}</p>
+                <p><strong>客户名称:</strong> ${data.customer_name}</p>
+                <p><strong>创建时间:</strong> ${data.created_at}</p>
+            `;
+            orderDetailsContainer.appendChild(basicInfo);
+
+            // 项目详情
+            const itemDetailsHTML = data.order_items.map((item, index) => {
+                const formData = item.item_form_data || {};
+                const keys = Object.keys(formData).filter(k => k !== 'line_id');
+
+                const fieldsHtml = keys.map((key) => {
+                  const val = formData[key];
+                  
+                  if (Array.isArray(val)) {
+                    // 多个值，拼成逗号分隔的字符串
+                    const vals = val.map(item => item.val).join(', ');
+                    return `<p><strong>${get_label_cn(key)}:</strong> ${vals}</p>`;
+                  } else if (typeof val === 'object' && val !== null) {
+                    // 单个对象，显示 val
+                    return `<p><strong>${get_label_cn(key)}:</strong> ${val.val ?? ''}</p>`;
+                  } else {
+                    // 直接显示
+                    return `<p><strong>${get_label_cn(key)}:</strong> ${val ?? ''}</p>`;
+                  }
+                }).join('');
+
+
+                return `
+                    <div style="margin-bottom: 1em; border-top: 1px solid #ccc; padding-bottom: 0.5em;">
+                        <p><strong>项目 ${index + 1} - ${get_fahui_type(item.code)}:</strong></p>
+                        ${fieldsHtml}
+                    </div>
+                `;
+            }).join('');
+
+            const itemDetailsDiv = document.createElement("div");
+            itemDetailsDiv.innerHTML = itemDetailsHTML;
+            orderDetailsContainer.appendChild(itemDetailsDiv);
+
+            // 显示 modal
+            modal.style.display = "block";
+            modal.classList.add("show");
+
+            modal.onclick = function (event) {
+                if (event.target === modal) close_modal();
+            };
+
+            document.getElementById("close_modal").onclick = close_modal;
+        })
+        .catch(error => {
+            console.error("请求出错：", error);
+        });
+}
+
+
+function close_modal() {
+    const modal = document.getElementById("order_modal");
+    modal.style.display = "none";
+    modal.classList.remove("show");
+}
+
+    // 页面加载时调用，获取版本列表
+    window.onload = function() {
+        fetchVersionList();  // 获取版本列表
+    };
+
+</script>
+
+{% endblock %}

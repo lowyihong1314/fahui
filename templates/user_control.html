@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}用户管理{% endblock %}
+
+{% block content %}
+<style>
+  #user_table_container {
+    margin-top: 1em;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px;
+    background-color: var(--bg-color);
+  }
+
+  #user_table_container table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    color: var(--text-color);
+  }
+
+  #user_table_container th,
+  #user_table_container td {
+    border: 1px solid var(--border-color);
+    padding: 8px 10px;
+    text-align: left;
+  }
+
+  #user_table_container th {
+    background-color: var(--nav-bg-color);
+    color: var(--nav-link-color);
+    font-weight: 600;
+  }
+
+  #add_user_btn {
+    margin-top: 1em;
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    background-color: var(--save-button-bg);
+    color: var(--button-text-color);
+    cursor: pointer;
+  }
+  #add_user_btn:hover {
+    background-color: var(--save-button-bg-hover);
+  }
+
+    /* --- modal 样式 --- */
+  .modal {
+    display: none; /* 默认隐藏 */
+    position: fixed;
+    z-index: 1000;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.5);
+  }
+
+  .modal-content {
+    background-color: var(--bg-color);
+    margin: 10% auto;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    width: 400px;
+    border-radius: 6px;
+  }
+
+  .modal-header {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: var(--title-color);
+  }
+
+  .modal-content label {
+    display: block;
+    margin-top: 10px;
+    font-size: 14px;
+    color: var(--text-color);
+  }
+
+  .modal-content input {
+    width: 100%;
+    padding: 6px;
+    margin-top: 4px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+  }
+
+  .modal-actions {
+    margin-top: 15px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .modal-actions button {
+    padding: 6px 14px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--button-text-color);
+  }
+
+  .btn-save {
+    background-color: var(--save-button-bg);
+  }
+  .btn-save:hover {
+    background-color: var(--save-button-bg-hover);
+  }
+
+  .btn-cancel {
+    background-color: var(--delete-button-bg);
+  }
+  .btn-cancel:hover {
+    background-color: var(--delete-button-bg-hover);
+  }
+</style>
+
+<h2 id="template_title" class="template_title">全部用户</h2>
+
+<div id="user_table_container"></div>
+
+<button id="add_user_btn">Add User</button>
+<div id="addUserModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">新增用户</div>
+    <label>用户名 (username)</label>
+    <input type="text" id="new_username" />
+
+    <label>显示名 (display_name)</label>
+    <input type="text" id="new_display_name" />
+
+    <label>邮箱 (email)</label>
+    <input type="email" id="new_email" />
+
+    <label>电话 (phone)</label>
+    <input type="text" id="new_phone" />
+
+    <div class="modal-actions">
+      <button class="btn-save" onclick="submit_new_user()">保存</button>
+      <button class="btn-cancel" onclick="close_modal()">取消</button>
+    </div>
+  </div>
+</div>
+<script>
+  window.onload = function () {
+    fetch_all_user();
+  };
+
+  function fetch_all_user() {
+    fetch("/user_control/get_all_user_data_full")
+      .then((response) => response.json())
+      .then((data) => {
+        generate_all_user_table(data);
+      })
+      .catch((error) => {
+        console.error("Error fetching user data:", error);
+      });
+  }
+
+  function generate_all_user_table(data) {
+    let container = document.getElementById("user_table_container");
+    container.innerHTML = "";
+
+    if (!data || data.length === 0) {
+      container.innerHTML = "<p>暂无用户数据</p>";
+      return;
+    }
+
+    let table = document.createElement("table");
+
+    // 表头
+    let thead = document.createElement("thead");
+    thead.innerHTML = `
+      <tr>
+        <th>ID</th>
+        <th>用户名</th>
+        <th>显示名</th>
+        <th>Email</th>
+        <th>Phone</th>
+        <th>创建时间</th>
+        <th>权限</th>
+        <th>主题</th>
+      </tr>
+    `;
+    table.appendChild(thead);
+
+    // 表体
+    let tbody = document.createElement("tbody");
+    data.forEach((user) => {
+      let row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${user.id}</td>
+        <td>${user.username}</td>
+        <td>${user.display_name || ""}</td>
+        <td>${user.email || ""}</td>
+        <td>${user.phone || ""}</td>
+        <td>${user.created_at || ""}</td>
+        <td>${user.permissions || ""}</td>
+        <td>${user.user_theme || ""}</td>
+      `;
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+
+    container.appendChild(table);
+  }
+
+  // 打开 modal
+  document.getElementById("add_user_btn").onclick = function () {
+    document.getElementById("addUserModal").style.display = "block";
+  };
+
+  // 关闭 modal
+  function close_modal() {
+    document.getElementById("addUserModal").style.display = "none";
+  }
+
+  // 提交新用户
+  function submit_new_user() {
+    let username = document.getElementById("new_username").value.trim();
+    let display_name = document.getElementById("new_display_name").value.trim();
+    let email = document.getElementById("new_email").value.trim();
+    let phone = document.getElementById("new_phone").value.trim();
+
+    if (!username || !email) {
+      alert("用户名和邮箱不能为空");
+      return;
+    }
+
+    let payload = {
+      username: username,
+      display_name: display_name,
+      email: email,
+      phone: phone,
+      password: "123456"
+    };
+
+    fetch("/user_control/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => res.json())
+      .then((res) => {
+        if (res.error) {
+          alert("添加失败: " + res.error);
+        } else {
+          alert("用户添加成功");
+          close_modal();
+          fetch_all_user(); // 刷新用户列表
+        }
+      })
+      .catch((err) => {
+        console.error("Error:", err);
+      });
+  }
+</script>
+{% endblock %}

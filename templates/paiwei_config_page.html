@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+
+{% block title %}法会系统{% endblock %}
+
+{% block content %}
+<style>
+
+  body {
+    max-height: 100vh;
+  }
+
+#controlModal {
+  position: fixed;
+  top: 100px;
+  left: 100px;
+  width: 400px;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  z-index: 9999;
+  display: none;
+  padding: 10px;
+  box-shadow: 0 0 10px var(--ping-color);
+  color: var(--text-color);
+  border-radius: 6px;
+}
+
+#controlModalHeader {
+  cursor: move;
+  background-color: var(--nav-bg-color);
+  padding: 5px;
+  font-weight: bold;
+  color: var(--text-color);
+  border-bottom: 1px solid var(--border-color);
+  border-radius: 4px 4px 0 0;
+}
+
+.value-box {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+/* 可选：统一按钮样式 */
+#controlModal button {
+  background-color: var(--edit-button-bg);
+  color: var(--button-text-color);
+  border: none;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background-color 0.2s ease;
+}
+
+#controlModal button:hover {
+  background-color: var(--edit-button-bg-hover);
+}
+
+#controlModal button.close-btn {
+  background-color: transparent;
+  color: var(--ping-color);
+  font-weight: bold;
+  font-size: 16px;
+  border: none;
+}
+
+#controlModal button.close-btn:hover {
+  background-color: var(--notify-close-hover-bg);
+  color: var(--text-color);
+}
+
+#pdf_container {
+  width: 100vw;
+  height: 100vh;  /* 视口高度 */
+  display: flex;
+  justify-content: center;  /* 水平居中 */
+  align-items: center;      /* 垂直居中 */
+  overflow: hidden;         /* 防止溢出 */
+}
+</style>
+
+<div id="pdf_container">
+ 
+</div>
+
+
+<script>
+
+
+let pointData = [];
+let currentValues = [0, 0, 0, 0];  // [x, y, fontSize, fontSpacing]
+
+function generate_control_panel() {
+  // 避免重复添加
+  if (document.getElementById('controlModal')) {
+    document.getElementById('controlModal').style.display = 'block';
+    return;
+  }
+
+  // 创建 HTML DOM 结构
+  const modal = document.createElement('div');
+  modal.id = 'controlModal';
+  modal.className = 'draggable'; // 保留 class
+  modal.style.position = 'absolute';
+  modal.style.top = '100px';
+  modal.style.left = '100px';
+  modal.style.background = 'var(--bg-color)';
+  modal.style.border = '1px solid var(--title-color-right)';
+  modal.style.padding = '10px';
+  modal.style.zIndex = 1000;
+
+  modal.innerHTML = `
+    <div id="controlModalHeader" style="cursor: move; background: var(--nav-bg-color); padding: 5px;">
+      控制面板
+    </div>
+    <div>
+      <label>ID:</label>
+      <input name="paiwei_id" type="text" value="247" id="paiweiIdselect">
+      <br>
+      <label>牌位类型:</label>
+      <select id="paiweiType" name="paiwei_type" oninput="generate_paiwei()"></select>
+      <br>
+      <label>牌位编号:</label>
+      <select id="paiweiCode" name="paiwei_code"></select>
+      <br>
+      <label>位置:</label>
+      <select id="positionType"></select>
+      <br>
+      <label>点位:</label>
+      <select id="pointType"></select>
+      <div class="value-box">
+        <label for="adjustRate">倍率:</label>
+        <select id="adjustRate">
+          <option value="1">1</option>
+          <option value="5" selected>5</option>
+          <option value="10">10</option>
+        </select>
+
+        <div style="margin-top: 10px; display: flex; flex-direction: column; align-items: center;">
+          <button onclick="adjustY(1)">⬆️</button>
+          <div style="display: flex; justify-content: center; gap: 10px; margin: 5px 0;">
+            <button onclick="adjustX(-1)">⬅️</button>
+            <button onclick="adjustX(1)">➡️</button>
+          </div>
+          <button onclick="adjustY(-1)">⬇️</button>
+        </div>
+
+        <div style="margin-top: 10px;">
+          <strong>X:</strong> <span id="displayX">0</span><br>
+          <strong>Y:</strong> <span id="displayY">0</span><br>
+          <strong>字体:</strong> <span id="displayFontSize">0</span><br>
+          <strong>字距:</strong> <span id="displayFontSpacing">0</span>
+        </div>
+      </div>
+      <div style="margin-top: 10px;">
+      <div>
+        <strong>字体大小:</strong> <span id="displayFontSize">0</span>
+        <button onclick="adjustFontSize(1)">A+</button>
+        <button onclick="adjustFontSize(-1)">A-</button>
+      </div>
+      <div style="margin-top: 5px;">
+        <strong>字距:</strong> <span id="displayFontSpacing">0</span>
+        <button onclick="adjustFontSpacing(1)">字距+</button>
+        <button onclick="adjustFontSpacing(-1)">字距-</button>
+      </div>
+    </div>
+
+
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+
+  // 拖动功能绑定
+  makeModalDraggable(modal);
+
+  // 数据加载
+  fetch('/print_paiwei/get_point_json')
+    .then(res => res.json())
+    .then(data => {
+      pointData = data;
+      populatePaiweiTypes();  // 你需要定义这个函数以填充 select
+      modal.style.display = 'block';
+    });
+}
+
+
+function makeModalDraggable(modal) {
+  const header = modal.querySelector('#controlModalHeader');
+  let offsetX = 0, offsetY = 0, isDragging = false;
+
+  header.onmousedown = function(e) {
+    isDragging = true;
+    offsetX = e.clientX - modal.offsetLeft;
+    offsetY = e.clientY - modal.offsetTop;
+    document.onmousemove = function(e) {
+      if (isDragging) {
+        modal.style.left = (e.clientX - offsetX) + 'px';
+        modal.style.top = (e.clientY - offsetY) + 'px';
+      }
+    };
+    document.onmouseup = function() {
+      isDragging = false;
+      document.onmousemove = null;
+      document.onmouseup = null;
+    };
+  };
+}
+
+function closeModal() {
+  document.getElementById('controlModal').style.display = 'none';
+}
+
+function populatePaiweiTypes() {
+  const select = document.getElementById('paiweiType');
+  select.innerHTML = '';
+  pointData.forEach(obj => {
+    const key = Object.keys(obj)[0];
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = key;
+    select.appendChild(option);
+  });
+
+  select.onchange = () => {
+    populateCodeOptions();      // <-- 新增
+    populatePositionTypes();
+  };
+
+  populateCodeOptions();        // <-- 初始化时调用
+  populatePositionTypes();
+}
+
+function populateCodeOptions() {
+  const typeToCodes = {
+    'paiwei_1': ['A1', 'A2', 'A3'],
+    'paiwei_5': ['B1', 'B2', 'B3'],
+    'paiwei_10': ['C']
+  };
+
+  const type = document.getElementById('paiweiType').value;
+  const select = document.getElementById('paiweiCode');
+  select.innerHTML = '';
+
+  const codes = typeToCodes[type] || [];
+
+  codes.forEach(code => {
+    const option = document.createElement('option');
+    option.value = code;
+    option.textContent = code;
+    select.appendChild(option);
+  });
+}
+
+function populatePositionTypes() {
+  const paiwei = document.getElementById('paiweiType').value;
+  const target = pointData.find(obj => Object.keys(obj)[0] === paiwei)[paiwei];
+  const select = document.getElementById('positionType');
+  select.innerHTML = '';
+  target.forEach(item => {
+    const key = Object.keys(item)[0];
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = key;
+    select.appendChild(option);
+  });
+  select.onchange = populatePointTypes;
+  populatePointTypes();
+}
+
+function populatePointTypes() {
+  const paiwei = document.getElementById('paiweiType').value;
+  const position = document.getElementById('positionType').value;
+  const target = pointData.find(obj => Object.keys(obj)[0] === paiwei)[paiwei];
+  const posItem = target.find(item => Object.keys(item)[0] === position)[position];
+
+  const select = document.getElementById('pointType');
+  select.innerHTML = '';
+  posItem.forEach(obj => {
+    const key = Object.keys(obj)[0];
+    const option = document.createElement('option');
+    option.value = key;
+    option.textContent = key;
+    select.appendChild(option);
+  });
+  select.onchange = updateValues;
+  updateValues();
+}
+
+function updateValues() {
+  const paiwei = document.getElementById('paiweiType').value;
+  const position = document.getElementById('positionType').value;
+  const point = document.getElementById('pointType').value;
+
+  const target = pointData.find(obj => Object.keys(obj)[0] === paiwei)[paiwei];
+  const posItem = target.find(item => Object.keys(item)[0] === position)[position];
+  const pointObj = posItem.find(obj => Object.keys(obj)[0] === point)[point];
+
+  currentValues = pointObj;
+  updateAdjustValueDisplay();
+}
+
+function updateAdjustValueDisplay() {
+  document.getElementById('displayX').textContent = currentValues[0];
+  document.getElementById('displayY').textContent = currentValues[1];
+  document.getElementById('displayFontSize').textContent = currentValues[2];
+  document.getElementById('displayFontSpacing').textContent = currentValues[3];
+}
+
+function getAdjustRate() {
+  const rateSelect = document.getElementById('adjustRate');
+  return parseInt(rateSelect.value);
+}
+
+function adjustX(direction) {
+  const rate = getAdjustRate();
+  currentValues[0] += direction * rate;
+  updateAdjustValueDisplay();
+  savePointData();
+}
+
+function adjustY(direction) {
+  const rate = getAdjustRate();
+  currentValues[1] += direction * rate;
+  updateAdjustValueDisplay();
+  savePointData();
+}
+
+function adjustFontSize(delta) {
+  currentValues[2] += delta;
+  updateAdjustValueDisplay();
+  savePointData();
+}
+
+function adjustFontSpacing(delta) {
+  currentValues[3] += delta;
+  updateAdjustValueDisplay();
+  savePointData();
+}
+
+
+function generate_paiwei() {
+  const idInput = document.querySelector('input[name="paiwei_id"]');
+  const typeSelect = document.querySelector('select[name="paiwei_type"]');
+  const codeSelect = document.querySelector('select[name="paiwei_code"]');
+
+  const idValue = idInput ? idInput.value.trim() : '';
+  const paiweiType = typeSelect ? typeSelect.value : '';
+  const paiweiCode = codeSelect ? codeSelect.value : '';
+
+  fetch('/print_paiwei/test_paiwei_image', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      id_list: idValue ? [parseInt(idValue)] : [],
+      paiwei_type: paiweiType,
+      paiwei_code: paiweiCode
+    })
+  })
+  .then(response => {
+    if (!response.ok) throw new Error('生成失败');
+    return response.blob();  // ⬅️ 获取 PDF Blob 数据
+  })
+  .then(blob => {
+    const url = URL.createObjectURL(blob);
+
+    const container = document.getElementById('pdf_container');
+    container.innerHTML = `
+      <object data="${url}" type="application/pdf" width="100%" height="800px"></object>
+    `;
+
+    Pushpopup("生成成功");
+  })
+  .catch(() => {
+    Pushpopup("生成失败，请检查");
+  });
+}
+
+function savePointData() {
+  fetch('/print_paiwei/update_point_json', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(pointData)
+  })
+  .then(response => response.json())
+  .then(result => {
+    if (result.success) {
+      Pushpopup("保存成功！");
+      generate_paiwei();
+    } else {
+      Pushpopup("保存失败：" + result.message);
+    }
+  })
+  .catch(error => {
+    console.error("请求出错:", error);
+    Pushpopup("请求失败！");
+  });
+}
+
+window.onload = function() {
+  generate_control_panel();
+};
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,860 @@
+{% extends "base.html" %}
+
+{% block title %}法会系统{% endblock %}
+
+{% block content %}
+<style>
+
+#headers {
+  display: flex;
+  justify-content: center;
+  align-items: stretch; /* 关键：让所有子项同高 */
+  gap: 10px;
+}
+
+#customer_info {
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  padding: 16px;
+  border-radius: 8px;
+  color: var(--text-color);
+  font-family: Arial, sans-serif;
+  max-width: 400px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+#customer_info p {
+  margin: 8px 0;
+  color: var(--text-color);
+}
+
+#customer_info p:first-child {
+  font-weight: bold;
+  color: var(--title-color);
+}
+
+#order_detail {
+  background-color: var(--bg-color);
+  padding: 16px;
+  border-radius: 8px;
+  color: var(--text-color);
+  font-family: Arial, sans-serif;
+  max-width: 900px;
+  margin: 20px auto;
+}
+
+#order_detail table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+#order_detail td {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  background-color: var(--notify-bg-color);
+  color: var(--text-color);
+  transition: background-color 0.2s, color 0.2s;
+}
+
+#order_detail td a{
+  color: var(--text-color);
+}
+
+#order_detail td a:hover{
+  box-shadow: 0 4px 10px var(--title-color-right);
+}
+
+#order_detail tr:first-child td {
+  font-weight: bold;
+  background-color: var(--nav-bg-color);
+  color: var(--title-color);
+}
+
+.button_list {
+  display: flex;
+  justify-content: center;
+}
+
+.btn {
+  cursor: pointer;
+  padding: 8px 12px;
+  margin: 5px;
+  border-radius: 4px;
+  text-decoration: none;
+  display: inline-block;
+  color: var(--button-text-color);
+  transition: background-color 0.2s ease;
+  border: none;
+}
+
+.btn-save {
+  background-color: var(--save-button-bg);
+}
+
+.btn-save:hover {
+  background-color: var(--save-button-bg-hover);
+}
+
+.btn-delete {
+  background-color: var(--delete-button-bg);
+}
+
+.btn-delete:hover {
+  background-color: var(--delete-button-bg-hover);
+}
+
+.btn-secondary {
+  background-color: var(--save-button-bg);
+}
+
+.btn-secondary:hover {
+  background-color: var(--save-button-bg-hover);
+}
+
+.btn-info {
+  background-color: var(--save-button-bg);
+}
+
+.btn-primary {
+  background-color: var(--save-button-bg);
+}
+
+#version {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  max-width: 400px;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 16px;
+}
+
+.version-text {
+  font-size: 50px;
+  font-weight: bold;
+}
+
+/* 动画样式 */
+@keyframes versionHighlight {
+  0% {
+    transform: scale(1);
+    background-color: var(--title-color);
+    color: var(--button-text-color);
+    box-shadow: 0 0 5px var(--title-color);
+  }
+  50% {
+    transform: scale(1.2);
+    background-color: var(--title-color-right);
+    color: var(--bg-color);
+    box-shadow: 0 0 20px var(--title-color-right);
+  }
+  100% {
+    transform: scale(1);
+    background-color: transparent;
+    color: var(--text-color);
+    box-shadow: none;
+  }
+}
+
+.animate-version {
+  animation: versionHighlight 3s ease-in-out;
+  border-radius: 8px;
+  padding: 4px 12px;
+  display: inline-block;
+  transition: all 0.3s ease;
+}
+
+/* 模态框遮罩层 */
+.modal {
+  display: none; /* 默认隐藏 */
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background-color: rgba(0, 0, 0, 0.4); /* 半透明黑色背景 */
+}
+
+/* 模态框内容 */
+.modal-content {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  margin: 10% auto;
+  padding: 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  width: 400px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+/* 标题 */
+.modal-content h2 {
+  margin-top: 0;
+  color: var(--title-color);
+}
+
+/* 输入框 */
+.modal-content input {
+  width: 100%;
+  padding: 8px;
+  margin-top: 4px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 14px;
+  color: var(--text-color);
+  background-color: var(--bg-color);
+}
+
+/* 按钮基础样式 */
+.modal-content .btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--button-text-color);
+  margin-right: 8px;
+  font-size: 14px;
+}
+
+/* 提交按钮 */
+.modal-content .btn.save {
+  background-color: var(--save-button-bg);
+}
+.modal-content .btn.save:hover {
+  background-color: var(--save-button-bg-hover);
+}
+
+/* 关闭按钮 */
+.modal-content .btn.close {
+  background-color: var(--delete-button-bg);
+}
+.modal-content .btn.close:hover {
+  background-color: var(--delete-button-bg-hover);
+}
+
+/* Footer 样式 */
+#footer {
+  margin: auto;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  padding: 15px;
+  border-top: 1px solid var(--border-color);
+  font-family: Arial, sans-serif;
+  max-width: 900px;
+}
+
+/* 表格样式 */
+#footer table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 10px;
+}
+
+#footer table th,
+#footer table td {
+  border: 1px solid var(--border-color);
+  padding: 8px;
+  text-align: left;
+}
+
+#footer table th {
+  background-color: var(--nav-bg-color);
+  color: var(--nav-link-color);
+}
+
+/* 总额样式 */
+#footer > div {
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: var(--title-color);
+}
+
+/* 按钮样式 */
+#footer button {
+  background-color: var(--edit-button-bg);
+  color: var(--button-text-color);
+  border: none;
+  padding: 8px 16px;
+  margin-right: 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.3s;
+}
+
+#footer button:hover {
+  background-color: var(--edit-button-bg-hover);
+}
+
+#footer button:last-child {
+  margin-right: 0;
+}
+
+#fahui_image_container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.pdf-thumbnail {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.pdf-thumbnail:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px var(--ping-color);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+</style>
+
+<h2 id="template_title" class="template_title">启建盂兰盆孝亲超度法会</h2>
+<div class="button_list" id="button_list">
+  <button onclick="window.location.href = `/template/fahui_input/${orderId}`;" class="btn btn-save">添加牌位</button>
+  <button onclick="delete_paiwei()" class="btn btn-delete">移除牌位</button>
+  <button onclick="copy_fahui_data()" class="btn btn-info">复制牌位</button>
+</div>
+<div id="headers">
+  <div id="customer_info"></div>
+  <div id="version"></div>
+</div>
+<div id="fahui_image_container"></div>
+<div id="order_detail"></div>
+
+<div id="footer"></div>
+
+<div class="button_list">
+    <button onclick="print_paiwei();" class="btn btn-secondary">下载牌位</button>
+    <button onclick="window.location.href = `/template/pay_order/${orderId}`;" class="btn btn-secondary">点击支付</button>
+</div>
+<div id="edit_customer_info_modal" class="modal">
+  <div class="modal-content">
+    <h2>编辑客户信息</h2>
+    
+    <label>客户名:</label>
+    <input id="edit_customer_name" type="text"><br><br>
+    
+    <label>电话:</label>
+    <input id="edit_customer_phone" type="text"><br><br>
+
+    <label>Email:</label>
+    <input id="edit_customer_email" type="email"><br><br>
+
+    <button class="btn save" onclick="submitEditCustomerInfo()">提交</button>
+    <button class="btn close" onclick="closeEditCustomerInfoModal()">关闭</button>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.14.305/pdf.worker.min.js"></script>
+
+<script>
+
+const orderId = '{{ order_id }}';
+
+function openEditCustomerInfoModal(data) {
+    // 填充现有数据
+    document.getElementById('edit_customer_name').value = data.customer_name || '';
+    document.getElementById('edit_customer_phone').value = data.phone || '';
+    document.getElementById('edit_customer_email').value = data.email || '';
+
+    // 显示 modal
+    document.getElementById('edit_customer_info_modal').style.display = 'block';
+
+    // 临时存储当前数据
+    window.currentCustomerData = data;
+}
+
+function closeEditCustomerInfoModal() {
+    document.getElementById('edit_customer_info_modal').style.display = 'none';
+}
+
+function submitEditCustomerInfo() {
+    const updatedData = {
+        customer_name: document.getElementById('edit_customer_name').value,
+        phone: document.getElementById('edit_customer_phone').value,
+        email: document.getElementById('edit_customer_email').value,
+    };
+
+    fetch(`/api/update_customer/${orderId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updatedData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            show_alert("success", "Edit success");
+            closeEditCustomerInfoModal();
+            fetchOrderDetail();
+            // 可根据需要刷新页面或更新前端显示
+        } else {
+            show_alert("error", data.message);
+        }
+    })
+    .catch(err => console.error("请求出错:", err));
+}
+
+function print_paiwei() {
+  const a = document.createElement('a');
+  a.href = `/print_paiwei/preview_order/${orderId}`;   // 后端返回 PDF
+  a.download = `paiwei_order_${orderId}.pdf`; // 下载的文件名
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+
+async function delete_paiwei() {
+  const id = orderId;
+  console.log(id);
+  if (!confirm("确定要删除此牌位订单？")) return;
+
+  try {
+    const res = await fetch(`/api/delete_orders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        data: [{ id: id }]
+      })
+    });
+
+    const result = await res.json();
+
+    if (result.status === "delete successfully") {
+      // 删除成功 → 跳转
+      window.location.href = "/template/fahui_data";
+    } else {
+      alert("删除失败：" + (result.message || "未知错误"));
+    }
+  } catch (err) {
+    console.error("请求出错：", err);
+    alert("删除请求失败！");
+  }
+}
+
+
+async function copy_fahui_data() {
+  try {
+    const res = await fetch('/api/copy_old_data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        order_id: orderId
+      })
+    });
+
+    const result = await res.json();
+
+    if (res.ok && result.new_order_id) {
+      // 跳转到新订单详情页
+      window.location.href = `/template/show_order_detail/${result.new_order_id}`;
+    } else {
+      alert("复制失败：" + (result.error || "未知错误"));
+    }
+  } catch (err) {
+    console.error("请求失败：", err);
+    alert("请求出错！");
+  }
+}
+
+function fetchOrderDetail() {
+    console.log(`查看详情 - ID: ${orderId}`);
+
+    fetch(`/api/get_order_detail?id=${orderId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("订单未找到");
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("订单详细信息：", data);
+            generateCustomerInfo(data);
+        })
+        .catch(error => {
+            console.error("请求出错：", error);
+        });
+}
+
+function generateCustomerInfo(data) {
+    const customerInfo = document.getElementById('customer_info');
+    const versionContainer = document.getElementById('version');
+
+    // 去掉 version 后面的 _YLP（如果存在）
+    const cleanVersion = (data.version || '').split('_')[0];
+
+    customerInfo.innerHTML = `
+        <div id="customer_info_content" style="cursor: pointer;">
+            <p>客户名: ${data.customer_name || ''}</p>
+            <p>电话: ${data.phone  || ''}</p>
+            <p>Email: ${data.email  || ''}</p>
+            <p>法会时间: ${data.date || ''}</p>
+        </div>
+    `;
+
+    versionContainer.innerHTML = `<div class="version-text">${cleanVersion}</div>`;
+    highlightVersion();
+
+    generateOrderItems(data);
+
+    // 绑定点击事件 -> 打开编辑模态框
+    document.getElementById('customer_info_content').onclick = () => {
+        openEditCustomerInfoModal(data);
+    };
+}
+
+function highlightVersion() {
+  const versionText = document.querySelector('#version');
+  if (!versionText) return;
+
+  versionText.classList.remove('animate-version');
+  void versionText.offsetWidth; // 触发重绘
+  versionText.classList.add('animate-version');
+}
+
+
+function generateOrderItems(data) {
+  const orderDetail = document.getElementById('order_detail');
+  const itemData = data.order_items;
+
+  orderDetail.innerHTML = ''; // 清空旧内容
+
+  itemData.forEach(item => {
+    const table = document.createElement('table');
+    table.classList.add('order-item-table');  // 可选：加样式类
+
+    // 添加主字段作为一行
+    const mainRow = document.createElement('tr');
+
+    const mainFields = [
+      { label: '项目名', value: get_fahui_type(item.code) }, 
+      { label: '功德金', value: item.price },
+      { label: 'Type', value: item.code }
+    ];
+
+    mainFields.forEach(field => {
+      const td = document.createElement('td');
+      td.textContent = `${field.label}: ${field.value ?? ''}`;
+      td.onclick = () =>  console.log(field.value, field.id);
+      mainRow.appendChild(td);
+    });
+
+    // ✅ 添加删除按钮列
+    const deleteCell = document.createElement('td');
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = "删除";
+    deleteBtn.className = "btn btn-delete"; // 可选：按钮样式
+    deleteBtn.onclick = () => delete_item(item.id);  // 调用你的 delete_item 函数
+
+    deleteCell.appendChild(deleteBtn);
+    mainRow.appendChild(deleteCell);
+
+    table.appendChild(mainRow);
+
+    // 添加 item_form_data 字段为多行（key/value）
+    const formData = item.item_form_data || {};
+      for (const [key, valueList] of Object.entries(formData)) {
+        if (!Array.isArray(valueList)) continue;
+
+        const formRow = document.createElement('tr');
+
+        const keyCell = document.createElement('td');
+        keyCell.textContent = get_label_cn(key);
+
+        const valueCell = document.createElement('td');
+        valueCell.colSpan = mainFields.length;
+        valueCell.style.cursor = "default"; // 整个单元格不触发事件，由<a>负责
+        valueCell.innerHTML = '';
+
+        valueList.forEach(({ val, val_id }) => {
+          const a = document.createElement('a');
+          a.href = '#';
+          a.textContent = val ?? '';
+
+          a.onclick = (e) => {
+            e.preventDefault();
+            edit_OrderItem(val, val_id);
+          };
+
+          valueCell.appendChild(a);
+        });
+
+        formRow.appendChild(keyCell);
+        formRow.appendChild(valueCell);
+        table.appendChild(formRow);
+      }
+
+    orderDetail.appendChild(table);
+  });
+  generate_footer(data);
+}
+
+function generate_footer(data) {
+    const container = document.getElementById('footer');
+    container.innerHTML = ''; // 清空之前内容
+
+    if (!data || !data.order_items || data.order_items.length === 0) {
+        container.textContent = "没有订单项";
+        return;
+    }
+
+    // 1. 创建表格
+    const table = document.createElement('table');
+    table.classList.add('order-footer-table');
+
+    // 表头
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    ['项目', '功德金', '位置号码'].forEach(text => {  // ✅ 新增一列
+        const th = document.createElement('th');
+        th.textContent = text;
+        headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    // 表身
+    const tbody = document.createElement('tbody');
+    let total = 0;
+
+    data.order_items.forEach(item => {
+        const tr = document.createElement('tr');
+
+        // 项目
+        const tdName = document.createElement('td');
+        tdName.textContent = get_fahui_type(item.code) || item.item_name || "未命名";
+
+        // 价格（健壮处理）
+        let price = 0;
+        if (item.code === "D" && item.item_form_data && item.item_form_data.price) {
+            const prices = item.item_form_data.price.map(p => Number(p.val) || 0);
+            price = prices.length > 1 ? prices.reduce((a, b) => a + b, 0) : prices[0];
+        } else {
+            price = Number(item.price) || 0;
+        }
+
+        const tdPrice = document.createElement('td');
+        tdPrice.textContent = price.toFixed(2);
+
+        // ✅ 位置号码
+        // ✅ 位置号码（可能有多个）
+        let locationNumbers = "";
+        if (item.item_location && item.item_location.length > 0) {
+            locationNumbers = item.item_location
+                .map(loc => (loc.pdf_page_data && loc.pdf_page_data.print_pdf_id) ? loc.pdf_page_data.print_pdf_id : null)
+                .filter(id => id !== null)   // 过滤掉无效值
+                .join(",");                  // 拼成 "123,456,78"
+        }
+
+        const tdLocation = document.createElement("td");
+        tdLocation.textContent = locationNumbers || "-";
+
+        // 拼装行
+        tr.appendChild(tdName);
+        tr.appendChild(tdPrice);
+        tr.appendChild(tdLocation);
+        tbody.appendChild(tr);
+
+        total += price;
+    });
+
+    table.appendChild(tbody);
+
+    container.appendChild(table);
+
+    // 2. 显示总额
+    const totalDiv = document.createElement('div');
+    totalDiv.classList.add('order-total');
+    totalDiv.textContent = `总功德金: ${total.toFixed(2)}`;
+    container.appendChild(totalDiv);
+
+    // 3. 创建按钮容器
+    if (data.login) {
+        const btnContainer = document.createElement('div');
+        btnContainer.classList.add('order-footer-buttons');
+
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = '上一条';
+        if (data.prev_id) {
+            prevBtn.onclick = () => window.location.href = `/template/show_order_detail/${data.prev_id}`;
+        } else {
+            prevBtn.disabled = true;
+        }
+
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = '下一条';
+        if (data.next_id) {
+            nextBtn.onclick = () => window.location.href = `/template/show_order_detail/${data.next_id}`;
+        } else {
+            nextBtn.disabled = true;
+        }
+
+        const printBtn = document.createElement('button');
+        printBtn.textContent = "🖨 打印收据";
+        printBtn.className = "print-btn";
+        printBtn.onclick = async () => {
+            if (confirm("是否要打印收据？")) {
+                try {
+                    const res = await fetch(`/payment/print_receipt/${orderId}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" }
+                    });
+                    const printData = await res.json();
+                    if (printData.success) {
+                        Pushpopup("✅ 收据已发送打印机");
+                    } else {
+                        Pushpopup("❌ 打印失败: " + (printData.message || "未知错误"));
+                    }
+                } catch (err) {
+                    console.error("打印出错:", err);
+                    Pushpopup("❌ 请求异常，打印失败");
+                }
+            } else {
+                // 如果只是要原来的详情跳转，可以放这里
+                Pushpopup("❌ 请求异常，打印失败");
+            }
+        };
+
+        btnContainer.appendChild(prevBtn);
+        btnContainer.appendChild(nextBtn);
+        btnContainer.appendChild(printBtn);  // 添加打印按钮到按钮容器
+        container.appendChild(btnContainer);
+        generate_paiwei_preview();
+    }
+}
+async function generate_paiwei_preview() {
+  const container = document.getElementById("fahui_image_container");
+  container.innerHTML = "加载中，请稍候...";
+
+  try {
+    const url = `/print_paiwei/preview_order/${orderId}`;
+    const pdf = await pdfjsLib.getDocument(url).promise;
+
+    container.innerHTML = ""; // 清空
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const scale = 1.5;
+      const viewport = page.getViewport({ scale });
+
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d");
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+
+      await page.render({ canvasContext: context, viewport }).promise;
+
+      // 生成缩略图
+      const img = document.createElement("img");
+      img.src = canvas.toDataURL("image/png");
+      img.style.width = "150px";
+      img.style.height = "150px";
+      img.style.objectFit = "cover";
+      img.style.margin = "5px";
+      img.style.cursor = "pointer";
+      img.classList.add("pdf-thumbnail");
+
+      // 点击放大
+      img.onclick = () => {
+        const overlay = document.createElement("div");
+        overlay.style.position = "fixed";
+        overlay.style.top = 0;
+        overlay.style.left = 0;
+        overlay.style.width = "100vw";
+        overlay.style.height = "100vh";
+        overlay.style.backgroundColor = "rgba(0,0,0,0.8)";
+        overlay.style.display = "flex";
+        overlay.style.justifyContent = "center";
+        overlay.style.alignItems = "center";
+        overlay.style.zIndex = 1000;
+
+        const fullImg = document.createElement("img");
+        fullImg.src = img.src;
+        fullImg.style.maxWidth = "90%";
+        fullImg.style.maxHeight = "90%";
+        fullImg.style.boxShadow = "0 0 20px #000";
+        fullImg.style.cursor = "pointer";
+
+        overlay.onclick = () => overlay.remove();
+
+        overlay.appendChild(fullImg);
+        document.body.appendChild(overlay);
+      };
+
+      container.appendChild(img);
+    }
+  } catch (err) {
+    console.error("请求出错:", err);
+    container.innerHTML = `<p style="color:red;">请求出错 ❌</p>`;
+  }
+}
+
+async function edit_OrderItem(value, id) {
+  const newValue = prompt("请输入：", value);
+  if (newValue === null || newValue.trim() === "") return;
+
+  try {
+    const res = await fetch('/api/update_item_form_value', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: id,
+        value: newValue.trim()
+      })
+    });
+
+    const result = await res.json();
+
+    if (res.ok && result.success) {
+      alert("修改成功！");
+      location.reload(); // 或局部刷新
+    } else {
+      alert("修改失败：" + (result.message || "未知错误"));
+    }
+  } catch (err) {
+    console.error("请求失败：", err);
+    alert("请求出错！");
+  }
+}
+
+function delete_item(item_id) {
+  if (!confirm("确定要删除这个项目？")) return;
+
+  fetch(`/api/delete_item/${item_id}/${orderId}`, {
+    method: "DELETE"
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.success) {
+      show_alert('success','delete success');
+      // 重新加载或刷新数据
+      fetchOrderDetail();
+    } else {
+      show_alert("error",data.message);
+    }
+  })
+  .catch(err => {
+    console.error("删除出错：", err);
+    alert("网络错误或服务器异常");
+  });
+}
+
+
+window.onload = function() {
+    fetchOrderDetail();
+};
+
+</script>
+{% endblock %}

@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}查看牌位{% endblock %}
+
+{% block content %}
+
+<style>
+/* 全局 */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+/* 顶部导航栏 */
+nav {
+  background-color: var(--nav-bg-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 10px;
+}
+nav a {
+  color: var(--nav-link-color);
+  text-decoration: none;
+  margin-right: 15px;
+}
+nav a:hover {
+  color: var(--nav-link-hover-color);
+}
+
+/* 标题 */
+h1, h2, h3 {
+  color: var(--title-color);
+  margin: 10px 0;
+}
+h1 span, h2 span, h3 span {
+  color: var(--title-color-right);
+}
+
+/* 用户名、提示 */
+.username {
+  color: var(--username-color);
+}
+.ping {
+  color: var(--ping-color);
+}
+
+/* 通知框 */
+.notify {
+  background-color: var(--notify-bg-color);
+  color: var(--notify-text-color);
+  border: 1px solid var(--notify-border-color);
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+}
+.notify .close {
+  float: right;
+  cursor: pointer;
+  padding: 0 5px;
+}
+.notify .close:hover {
+  background-color: var(--notify-close-hover-bg);
+}
+
+/* 按钮样式 */
+button.save, button.edit, button.delete {
+  color: var(--button-text-color);
+  border: none;
+  padding: 8px 14px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+button.save {
+  background-color: var(--save-button-bg);
+}
+button.save:hover {
+  background-color: var(--save-button-bg-hover);
+}
+button.edit {
+  background-color: var(--edit-button-bg);
+}
+button.edit:hover {
+  background-color: var(--edit-button-bg-hover);
+}
+button.delete {
+  background-color: var(--delete-button-bg);
+}
+button.delete:hover {
+  background-color: var(--delete-button-bg-hover);
+}
+
+/* 下拉选择框 */
+select {
+  padding: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+/* PDF 区域 */
+#pdf_container {
+  margin-top: 15px;
+}
+
+#pdf_pages canvas {
+  width: 100%;   /* ⚡ 自适应手机屏幕 */
+  height: auto;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+}
+
+/* 加载动画 */
+.loader {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--title-color);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 20px auto;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+</style>
+
+<div>
+  <h3>PDF 文件列表</h3>
+  <select id="pdf_file_select" onchange="view_pdf(this.value)">
+    <option value="">请选择一个 PDF 文件</option>
+  </select>
+</div>
+
+<hr>
+
+<div id="pdf_container">
+  <h3>PDF 预览</h3>
+  <div id="pdf_pages"></div>
+</div>
+
+<!-- 引入 pdf.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
+
+<script>
+  window.onload = function() {
+    generate_all_file();
+  }
+
+  // 拉取所有 PDF 文件名
+  function generate_all_file() {
+    fetch("/print_paiwei/get_all_pdf_name")
+      .then(response => response.json())
+      .then(data => {
+        const select = document.getElementById("pdf_file_select");
+        select.innerHTML = '<option value="">请选择一个 PDF 文件</option>'; // 重置选项
+
+        data.forEach(item => {
+          if (item.type === "file" && item.name.toLowerCase().endsWith(".pdf")) {
+            const option = document.createElement("option");
+            option.value = item.name;
+            option.textContent = item.name;
+            select.appendChild(option);
+          }
+        });
+      });
+  }
+
+  // 渲染 PDF
+  async function view_pdf(filename) {
+    if (!filename) return;
+
+    const url = "/print_paiwei/get_pdf_file?filename=" + encodeURIComponent(filename);
+
+    // 显示加载动画
+    const container = document.getElementById("pdf_pages");
+    container.innerHTML = '<div class="loader"></div>';
+
+    try {
+      const loadingTask = pdfjsLib.getDocument(url);
+      const pdf = await loadingTask.promise;
+
+      container.innerHTML = ""; // 清空加载动画
+
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+
+        const scale = 1.5; // 放大比例
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        await page.render({ canvasContext: context, viewport }).promise;
+        container.appendChild(canvas);
+      }
+    } catch (err) {
+      console.error("加载 PDF 出错:", err);
+      container.innerHTML = `<p style="color:red;">加载 PDF 出错 ❌</p>`;
+    }
+  }
+</script>
+
+{% endblock %}

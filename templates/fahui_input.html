@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+
+{% block title %}法会系统{% endblock %}
+
+{% block content %}
+<style>
+
+.select_container {
+  background-color: var(--notify-bg-color);
+  border: 1px solid var(--notify-border-color);
+  border-radius: 8px;
+  padding: 20px;
+  max-width: 600px;
+  margin: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.select label {
+  color: var(--text-color);
+  margin-bottom: 8px;
+  display: inline-block;
+}
+
+.select select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.form h1 {
+  color: var(--title-color);
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.input_container {
+  margin-bottom: 15px;
+}
+
+.input_container label{
+  display: inline-block;
+  width: 100px;
+  color: var(--text-color);
+}
+
+.input_container input{
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  width: calc(100% - 110px);
+  box-sizing: border-box;
+  background-color: var(--border-color);
+  color: var(--text-color);
+}
+.owner_input {
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+    background-color: var(--border-color);
+  color: var(--text-color);
+}
+
+.fields_container{
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+#owner_container{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-right: 5px;
+}
+button.addField,
+button.removeField {
+  background-color: var(--edit-button-bg);
+  color: var(--button-text-color);
+  border: none;
+  padding: 8px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+}
+
+button.addField:hover,
+button.removeField:hover {
+  background-color: var(--edit-button-bg-hover);
+}
+
+button.removeField {
+  background-color: var(--delete-button-bg);
+}
+
+button.removeField:hover {
+  background-color: var(--delete-button-bg-hover); 
+}
+
+.submit_button {
+  background-color: var(--save-button-bg);
+  color: var(--button-text-color);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 10px; 
+}
+
+.submit_button:hover {
+  background-color: var(--save-button-bg-hover);
+}
+
+#deceased_container {
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: block;
+}
+
+#deceased_container h3 {
+  color: var(--title-color);
+  margin-bottom: 15px;
+  font-size: 1.2em;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 5px;
+}
+
+.deceased_group {
+  display: block;
+  margin-bottom: 15px;
+  gap: 10px;
+}
+
+.deceased_group label {
+  color: var(--text-color);
+  margin-right: 5px;
+  font-weight: bold;
+}
+
+.deceased_group input[type="text"],
+.deceased_group input.form_select {
+    width: 100%;
+    height: 36px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.deceased_group button {
+  background-color: var(--delete-button-bg);
+  color: var(--button-text-color);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.deceased_group button:hover {
+  background-color: var(--delete-button-bg-hover);
+}
+
+
+</style>
+
+<h2 id="template_title" class="template_title">法会系统</h2>
+
+    <div class="select_container">
+        <div class="select">
+            <label>选择你要输入的数据:</label>
+            <select id="form-group" name="form-group" onchange="get_form()">
+                <option value="A1">A1 大牌位：超度历代祖先 RM 100</option>
+                <option value="A2">A2 大牌位：超度亡灵 RM 100</option>
+                <option value="A3">A3 大牌位：无缘子女 RM 100</option>
+                <option value="B1">B1 小牌位：超度历代祖先 RM 35</option>
+                <option value="B2">B2 小牌位：超度亡灵 RM 35</option>
+                <option value="B3">B3 小牌位：无缘子女 RM 35</option>
+                <option value="C">C 小牌位：超度冤亲债主 RM15</option>
+                <option value="D">D 随缘供斋</option>
+                <option value="D1">D1 普度贡品 RM50</option>
+            </select>
+        </div>
+        <div class="form" id="form"></div>
+        <div id="button_list">
+            <button class="submit_button" onclick="window.location.href='/template/show_order_detail/{{order_id}}'">下一步</button>
+        </div>
+    </div>
+
+
+    <script>
+        const form_code ="{{ order_id}}";
+
+        function check_data(){
+            window.location.href=`/fahui/{{version}}/fahui_check_data/${form_code}`
+        }
+
+        const options =  [
+            "祖先", "曾祖父", "曾祖母", "祖父", "祖母", "显考", "显妣", "伯父", "伯母", "叔父", "叔母",
+            "姑父", "姑母", "舅父", "舅母", "姨父", "姨母", "亡夫", "亡妻", "亡兄", "亡姐",
+            "嫂嫂",  "姐夫", "亡弟", "弟媳", "亡妹", "妹婿", "亡兒", "亡女", "侄兒","外甥","外甥女",
+            "十方法界", "累劫冤親債主", "地基主", "朋友", "師長","后裔","外祖父","外祖母","家公","堂兄","亡亲"
+        ];
+
+        function createSelectOptions() {
+            return options.map(option => `<option value="${option}">`).join('');
+        }
+
+
+function addDeceasedRelation() {
+    const container = document.getElementById('deceased_container');
+    const existingGroups = container.getElementsByClassName('deceased_group');
+
+    // 检查是否已经有两个了
+    if (existingGroups.length >= 2) {
+        alert('最多只能添加两位亡者。');
+        return;
+    }
+
+    // 创建新的一组输入项
+    const div = document.createElement('div');
+    div.classList.add('deceased_group');
+    div.innerHTML = `
+        <label>亡者姓名：</label>
+        <input type="text" name="deceased" pattern="[^a-zA-Z]*" required>
+        <label>关系：</label>
+        <input list="browsers" class="form_select" name="relation" required>
+        <button type="button" onclick="this.parentElement.remove()">删除</button>
+    `;
+    container.appendChild(div);
+}
+
+
+
+function get_form() {
+
+    const group = document.getElementById('form-group').value;
+
+    document.getElementById('form').innerHTML = '';
+    console.log(`get_form 被触发，当前选项值为: ${group}`);
+    const selectOptions = createSelectOptions();
+
+    let formHTML = '';
+
+    if (group === "A1" || group === "B1") {
+        const isA1 = group === "A1";
+        formHTML = `
+            <form>
+                <h1>${group}${isA1 ? '大' : '小'}牌位：超度历代祖先 RM ${isA1 ? '100' : '35'}</h1>
+                ${getFieldsContainerHTML()}
+                <div class="input_container">
+                    <label>佛力超度：</label>
+                    <input style="width: 50px;" maxlength="5" placeholder="" type="text" name="surname" required>
+                    <strong>门堂上历代祖先</strong>
+                </div>
+
+                <div class="input_container">
+                     <label>关系：</label>
+                    <input list="browsers" class="form_select" id="relation" value="后裔" name="relation" readonly>
+                    <datalist id="browsers">${selectOptions}</datalist>
+                </div>
+                <div class="input_container">
+                    <label>显考：</label>
+                    <input type="text" name="father" pattern="[^a-zA-Z]*" placeholder="可以留空">
+                </div>
+                <div class="input_container">
+                    <label>显妣：</label>
+                    <input type="text" name="mother" pattern="[^a-zA-Z]*" placeholder="可以留空">
+                </div>
+
+                <input type="hidden" name="item_name" value="${isA1 ? '大' : '小'}牌位_超度历代祖先">
+
+                <button class="submit_button" id="submit_form_button" onclick="submit_form(event)">保存</button>
+            </form>
+        `;
+} else if (group === "A2" || group === "B2") {
+    const isA2 = group === "A2";
+    formHTML = `
+        <form id="form_${group}">
+            <h1>${group}${isA2 ? '大' : '小'}牌位：超度亡灵 RM ${isA2 ? '100' : '35'}</h1>
+
+            ${getFieldsContainerHTML()}
+
+            <div id="deceased_container">
+                <h3>亡者信息</h3>
+ 
+            </div>
+            <button class="submit_button" type="button" onclick="addDeceasedRelation()">+ 添加亡者</button>
+
+            <datalist id="browsers">${selectOptions}</datalist>
+
+            <input type="hidden" name="item_name" value="${isA2 ? '大' : '小'}牌位_超度亡灵">
+
+            <button class="submit_button" class="submit_button" id="submit_form_button" onclick="submit_form(event)">保存</button>
+        </form>
+    `;
+
+
+    } else if (group === "A3" || group === "B3") {
+        const isA3 = group === "A3";
+        formHTML = `
+            <form>
+                <h1>${group}${isA3 ? '大' : '小'}牌位：无缘子女 RM ${isA3 ? '100' : '35'}</h1>
+
+                <div class="input_container">
+                    <label>无缘子女：</label>
+                    <input type="text" name="deceased" value="无缘子女" pattern="[^a-zA-Z]*">
+                </div>
+                <div class="input_container">
+                    <label>父亲：</label>
+                    <input id="input_A" type="text" name="father" pattern="[^a-zA-Z]*" placeholder="可以留空">
+                </div>
+                <div class="input_container">
+                    <label>母亲：</label>
+                    <input type="text" name="mother" pattern="[^a-zA-Z]*" placeholder="可以留空">
+                </div>
+
+                <input type="hidden" name="item_name" value="${isA3 ? '大' : '小'}牌位_无缘子女">
+
+                <button class="submit_button" id="submit_form_button" onclick="submit_form(event)">保存</button>
+            </form>
+        `;
+    } else if (group === "C") {
+        formHTML = `
+            <form>
+                <h1>${group} 小牌位：超度冤亲债主 RM15</h1>
+
+                <div class="input_container">
+                    <label>阳人姓名：</label>
+                    <input id="input_A" type="text" name="owner" pattern="[^a-zA-Z]*" required>
+                </div>
+
+                <input type="hidden" name="item_name" value="小牌位_超度冤亲债主">
+
+                <button class="submit_button" id="submit_form_button" onclick="submit_form(event)">保存</button>
+            </form>
+        `;
+    } else if (group === "D") {
+        formHTML = `
+            <form>
+                <h1>${group} 随缘供斋</h1>
+
+                <div class="input_container">
+                    <label>姓名：</label>
+                    <input id="input_A" type="text" name="owner" pattern="[^a-zA-Z]*" required>
+                </div>
+                <div class="input_container">
+                    <label>金额：</label>
+                    <input class="price_input" type="number" name="price" required>
+                </div>
+
+                <input type="hidden" name="item_name" value="随缘供斋">
+
+                <button class="submit_button" id="submit_form_button" onclick="submit_form(event)">保存</button>
+            </form>
+        `;
+    } else if (group === "D1") {
+        formHTML = `
+            <form>
+                <h1>${group} 普度贡品 RM50</h1>
+
+                <div class="input_container">
+                    <label>数量：</label>
+                    <input type="number" name="quantity" value="1" readonly>
+                </div>
+
+                <input type="hidden" name="item_name" value="普度贡品">
+
+                <button class="submit_button" id="submit_form_button" onclick="submit_form(event)">保存</button>
+            </form>
+        `;
+    } else {
+        formHTML = `<div>未定义的选项: ${group}</div>`;
+    }
+
+    document.getElementById('form').innerHTML = formHTML;
+    if (group === "A2" || group === "B2") {
+        // 如果是 A2 或 B2，添加亡者信息输入框
+        addDeceasedRelation();
+    }
+
+    // 添加复选框监听器
+    const checkbox = document.getElementById('suffixCheckbox');
+    const hiddenSuffix = document.getElementById('hiddenSuffix');
+    if (checkbox && hiddenSuffix) {
+        checkbox.addEventListener('change', function () {
+            hiddenSuffix.value = checkbox.checked ? " " : "门堂上历代祖先";
+        });
+    }
+
+    // 添加表单提交事件监听器
+    const formElement = document.getElementById(`form${group}`);
+    if (formElement) {
+        formElement.addEventListener('submit', function (event) {
+            event.preventDefault();
+            submit_form(group);
+        });
+    }
+
+    document.getElementById('input_A');
+}
+
+function getFieldsContainerHTML() {
+    return `
+        <div class="fields_container">
+            <label>阳人姓名：</label>
+            <div id="owner_container">
+                <input id="owner_input_1" class="owner_input" type="text" name="owner" pattern="[^a-zA-Z]*" required>
+            </div>
+            <button class="addField" type="button" onclick="addField()">+</button>
+            <button class="removeField" type="button" onclick="removeField()">-</button>
+        </div>
+    `;
+}
+
+
+let fieldCount = 0;
+
+    function addField() {
+        const container = document.getElementById('owner_container');
+        const inputs = container.getElementsByClassName('owner_input');
+        const count = inputs.length;
+
+        if (count >= 4) {
+            alert("最多只能添加 4 个输入框！");
+            return;
+        }
+
+        const newInput = document.createElement('input');
+        newInput.type = 'text';
+        newInput.name = 'owner';
+        newInput.required = true;
+        newInput.pattern = '[^a-zA-Z]*';
+        newInput.className = 'owner_input';
+        newInput.id = `owner_input_${count + 1}`;
+
+        container.appendChild(newInput);
+
+        console.log(`addField: added owner_input_${count + 1}`);
+    }
+
+    function removeField() {
+        const container = document.getElementById('owner_container');
+        const inputs = container.getElementsByClassName('owner_input');
+        const count = inputs.length;
+
+        if (count <= 1) {
+            console.log("至少保留一个输入框！");
+            return;
+        }
+
+        // 移除最后一个 label 和 input（每次都添加 label + input）
+        container.removeChild(container.lastElementChild); // input
+
+        console.log(`removeField: removed owner_input_${count}`);
+    }
+
+function submit_form(event) {
+    event.preventDefault();
+
+    console.log('submit tried');
+
+    const form = document.querySelector('.select_container'); // 获取 form 元素
+
+    // 获取所有 input、select、textarea
+    const elements = form.querySelectorAll('input, select, textarea');
+
+    const form_data = {};
+
+    elements.forEach(el => {
+        const name = el.name;
+        const value = el.value.trim(); // 去除空白字符
+
+        if (!name) return;
+
+        // 对于可能多值的字段（owner、deceased、relation 等），统一用数组
+        const multiValueFields = ['owner', 'deceased', 'relation'];
+
+        if (multiValueFields.includes(name)) {
+            if (!form_data[name]) {
+                form_data[name] = [];
+            }
+            if (value) {
+                form_data[name].push(value);
+            }
+        } else {
+            form_data[name] = value;
+        }
+    });
+
+    form_data.form_code = form_code;
+
+    fetch(`/api/add_paiwei/${form_code}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(form_data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            show_alert('success', `保存成功, item_id: ${data.item_id}`);
+            clear_input();
+        } else {
+            show_alert('error', data.message);
+        }
+    })
+    .catch(error => {
+        console.error('请求出错:', error);
+        show_alert('error', '提交失败，请检查网络或联系管理员');
+    });
+}
+
+
+function clear_input() {
+    const inputs = document.querySelectorAll('input');
+    inputs.forEach(input => {
+        input.value = '';
+    });
+    console.log('所有输入框内容已清空');
+}
+
+
+document.addEventListener('DOMContentLoaded', async function() {
+    get_form();
+});
+
+    </script>
+{% endblock %}

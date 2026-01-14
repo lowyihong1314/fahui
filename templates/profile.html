@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}Profile{% endblock %}
+
+{% block content %}
+<style>
+.profile-container {
+  max-width: 500px;
+  margin: 40px auto;
+  background-color: var(--bg-color);
+  border: 1px solid var(--border-color);
+  padding: 30px;
+  border-radius: 10px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  color: var(--text-color);
+}
+
+.profile-container h2 {
+  margin-bottom: 20px;
+  color: var(--text-color);
+}
+
+#profileForm label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+#profileForm input,
+#profileForm select {
+    background-color: var(--border-color);
+    color: var(--text-color);
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    font-size: 14px;
+}
+
+#profileForm button {
+  background-color: var(--save-button-bg);
+  color: var(--button-text-color);
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+#profileForm button:hover {
+  background-color: var(--save-button-bg-hover);
+}
+
+#statusMessage {
+  margin-top: 15px;
+  font-size: 14px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background-color: var(--bg-color);           /* 原：--form-bg-color → 使用 --bg-color */
+  color: var(--text-color);                    /* 保留 */
+  padding: 20px;                                /* 你没定义 --form-padding，直接写死 */
+  border: 1px solid var(--border-color);       /* 替换为你的变量 */
+  border-radius: 8px;                           /* 你没定义 --form-radius，写固定值 */
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+.modal label {
+  display: block;
+  margin: 10px 0 5px;
+}
+
+.modal input {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 10px;
+  border: 1px solid var(--border-color);       /* 替换 --input-border-color → --border-color */
+  border-radius: 4px;
+  box-sizing: border-box;
+  background-color: var(--bg-color);           /* 保留 */
+  color: var(--text-color);                    /* 保留 */
+}
+
+.modal input:focus {
+  border-color: var(--nav-link-hover-color);   /* 替换 --input-focus-border-color → 可用强调色 */
+  outline: none;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.modal button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 4px;
+  color: var(--button-text-color);             /* 使用你的按钮文字色变量 */
+  cursor: pointer;
+  transition: background-color 0.3s;
+  background-color: var(--save-button-bg);     /* 默认使用绿色保存按钮背景 */
+}
+
+.modal button:hover {
+  background-color: var(--save-button-bg-hover); /* 悬停状态绿色加深 */
+}
+
+.button {
+  margin: 10px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 4px;
+  color: var(--button-text-color);             /* 使用你的按钮文字色变量 */
+  cursor: pointer;
+  transition: background-color 0.3s;
+  background-color: var(--save-button-bg);     /* 默认使用绿色保存按钮背景 */
+}
+
+.button:hover {
+  background-color: var(--save-button-bg-hover); /* 悬停状态绿色加深 */
+}
+
+</style>
+
+<h2 class="template_title">Profile</h2>
+
+<div class="profile-container">
+    <form id="profileForm">
+        <label for="display_name">Display Name</label>
+        <input type="text" id="display_name" name="display_name" />
+
+        <label for="email">Mail</label>
+        <input type="email" id="email" name="email" />
+
+        <label for="phone">Phone</label>
+        <input type="text" id="phone" name="phone" />
+
+        <label for="user_theme">Theme</label>
+        <select id="user_theme" name="user_theme">
+            <option value="light">light</option>
+            <option value="dark">dark</option>
+            <option value="dark-blue">dark Blue</option>
+            <option value="pink">pink</option>
+            <option value="blue">blue</option>
+            <option value="green">green</option>
+        </select>
+
+        <button type="button" onclick="submitProfile()">保存修改</button>
+        <button type="button" onclick="logout_function()">登出</button>
+    </form>
+
+    <button class="button" onclick="openPasswordModal()">修改密码</button>
+
+    <p id="statusMessage"></p>
+        <input type="file" id="pdfFile" accept="application/pdf" onchange="upload_pdf()" />
+    <a href="/print_paiwei/paiwei_config_page">paiwei config</a>
+</div>
+
+  <div class="modal-overlay" id="password-modal">
+    <div class="modal">
+      <h3>修改密码</h3>
+      <label for="old-password">原密码</label>
+      <input type="password" id="old-password" placeholder="输入当前密码" />
+      
+      <label for="new-password">新密码</label>
+      <input type="password" id="new-password" placeholder="输入新密码" />
+      
+      <label for="confirm-password">确认新密码</label>
+      <input type="password" id="confirm-password" placeholder="再次输入新密码" />
+  
+      <div class="modal-buttons">
+        <button class="button blue" onclick="closePasswordModal()">取消</button>
+        <button class="button green" onclick="changePassword()">确认修改</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/user_control/get_user_data')
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('display_name').value = data.display_name || '';
+            document.getElementById('email').value = data.email || '';
+            document.getElementById('phone').value = data.phone || '';
+            document.getElementById('user_theme').value = data.user_theme || 'light';
+        })
+        .catch(error => {
+            console.error('获取用户数据失败:', error);
+            document.getElementById('statusMessage').textContent = '加载用户信息失败。';
+        });
+});
+
+function logout_function() {
+  fetch('/user_control/logout', {
+    method: 'GET',
+    credentials: 'include' // 确保发送 cookie
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.status === 'success') {
+      window.location.href = '/user_control/login'; // 或根据你登录页路径修改
+    } else {
+      alert('登出失败');
+    }
+  })
+  .catch(err => {
+    console.error('登出错误', err);
+    alert('登出异常');
+  });
+}
+
+function submitProfile() {
+    const payload = {
+        display_name: document.getElementById('display_name').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        user_theme: document.getElementById('user_theme').value
+    };
+
+    fetch('/user_control/edit_user_data', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(data => {
+        const statusMsg = document.getElementById('statusMessage');
+        if (data.status === 'success') {
+            statusMsg.textContent = '✅ 用户信息更新成功！';
+            statusMsg.style.color = 'green';
+            fetchUserData();
+        } else {
+            statusMsg.textContent = '❌ 更新失败：' + data.message;
+            statusMsg.style.color = 'red';
+        }
+    })
+    .catch(error => {
+        document.getElementById('statusMessage').textContent = 'Submission failed: ' + error;
+        document.getElementById('statusMessage').style.color = 'red';
+    });
+}
+
+  function openPasswordModal() {
+    document.getElementById('password-modal').style.display = 'flex';
+  }
+
+  function closePasswordModal() {
+    document.getElementById('password-modal').style.display = 'none';
+  }
+
+  async function changePassword() {
+    const oldPassword = document.getElementById('old-password').value;
+    const newPassword = document.getElementById('new-password').value;
+    const confirmPassword = document.getElementById('confirm-password').value;
+
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      Pushpopup("请填写所有字段");
+      return;
+    }
+
+    const res = await fetch('/user_control/change_password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      credentials: 'include',
+      body: JSON.stringify({
+        old_password: oldPassword,
+        new_password: newPassword,
+        confirm_password: confirmPassword
+      })
+    });
+
+    const result = await res.json();
+
+    if (result.status === 'success') {
+      Pushpopup(result.message);
+      closePasswordModal();
+      location.reload();
+    } else {
+      Pushpopup(result.message);
+    }
+  }
+
+  function upload_pdf() {
+    const fileInput = document.getElementById('pdfFile');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        Pushpopup("请选择一个 PDF 文件");
+        return;
+    }
+
+    if (file.type !== 'application/pdf') {
+        Pushpopup("只允许上传 PDF 文件");
+        fileInput.value = '';  // 清空不合法的文件
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    fetch("/print_paiwei/upload_paiwei_template", {
+        method: "POST",
+        body: formData,
+        credentials: 'include'  // 如果你的后端需要登录状态
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            Pushpopup("上传失败: " + data.error);
+        } else {
+            Pushpopup("上传成功！");
+            console.log("文件保存路径：", data.path);
+        }
+    })
+    .catch(error => {
+        console.error("上传出错：", error);
+        Pushpopup("上传失败，请稍后重试");
+    });
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,1338 @@
+{% extends "base.html" %}
+
+{% block title %}找排位{% endblock %}
+
+{% block content %}
+<style>
+#group_container{
+    max-width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    padding: 20px;
+    gap: 20px;
+}
+/* 单个白板 */
+.white_board {
+  flex: 1 1 300px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--notify-bg-color);
+  padding: 12px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  transition: box-shadow 0.2s ease-in-out;
+}
+
+.white_board:hover {
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* 标题 */
+.board_title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin: 0 0 10px 0;
+  color: var(--title-color);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 6px;
+}
+
+/* PDF 区域 */
+.pdf_area {
+  min-height: 80px;
+  padding: 8px;
+  border-radius: 6px;
+  background-color: var(--bg-color);
+  border: 1px dashed var(--border-color);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start; /* 每张 pdf_paper 以自身高度为准 */
+}
+
+/* 单个 PDF 纸张 */
+.pdf_paper {
+  position: relative;
+  background-color: var(--notify-bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  margin: 8px auto;
+  overflow: hidden;
+
+  /* ⚡ 固定比例为 A4 */
+  aspect-ratio: 210 / 297;   /* 浏览器支持 aspect-ratio */
+  width: 100%;               /* 默认占满容器宽度 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.pdf_paper:hover {
+  transform: scale(1.03);
+  border-color: var(--nav-link-hover-color);
+}
+
+/* PDF 标题 */
+.pdf_title {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-color);
+  text-align: center;
+}
+/* 占位提示 */
+.empty_notice {
+  font-size: 0.9rem;
+  color: var(--ping-color);
+  text-align: center;
+  padding: 16px 0;
+}
+
+.pdf_modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.pdf_modal_content {
+  background: var(--notify-bg-color);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  min-width: 300px;
+  color: var(--text-color);
+}
+
+.Input {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--border-color);
+  color: var(--text-color);
+  font-size: larger;
+}
+
+.context-menu {
+  position: absolute;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  z-index: 9999;
+  min-width: 150px;
+  font-size: 14px;
+  color: var(--text-color);
+}
+
+.context-menu-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.context-menu-item:hover {
+  background-color: var(--nav-link-hover-color);
+  color: var(--button-text-color);
+}
+
+/* 针对不同动作加颜色提示（可选） */
+.context-menu-item.delete_pdf:hover {
+  background-color: var(--delete-button-bg-hover);
+  color: var(--button-text-color);
+}
+.context-menu-item.edit_pdf:hover {
+  background-color: var(--edit-button-bg-hover);
+  color: var(--button-text-color);
+}
+.context-menu-item.download_pdf:hover {
+  background-color: var(--save-button-bg-hover);
+  color: var(--button-text-color);
+}
+
+.search_container {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.search_container input {
+  padding: 12px 16px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-color);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  border-radius: 6px;
+  width: 50%;
+  color: var(--text-color);
+  font-size: 18px;
+  transition: all 0.3s ease;
+}
+
+.search_container input:focus {
+  outline: none;
+  border-color: var(--title-color);
+  box-shadow: 0 0 8px var(--title-color);
+}
+
+.search_container button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--title-color), var(--title-color-right));
+  color: var(--button-text-color);
+  font-size: 16px;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search_container button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.search_container button:active {
+  transform: scale(0.96);
+}
+
+/* 遮罩 */
+.detail_modal_overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.detail_modal {
+  position: fixed;   /* ✅ 改成 fixed */
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-color);
+  border-radius: 8px;
+  padding: 10px;
+  min-width: 600px;
+  max-width: 80%;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  z-index: 99999999;
+}
+
+/* 头部（可拖动区域） */
+.detail_modal_head {
+  background: linear-gradient(90deg, var(--title-color), var(--title-color-right));
+  color: var(--button-text-color);
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+  cursor: move;   /* 只有头部可以拖动 */
+  font-weight: bold;
+}
+
+.detail_modal_head button {
+  background: transparent;
+  border: none;
+  color: var(--button-text-color);
+  font-size: 16px;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.detail_modal_head button:hover {
+  color: var(--nav-link-hover-color);
+}
+
+/* 表格 */
+.detail_modal table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.detail_modal table th {
+  background: var(--nav-bg-color);
+  color: var(--nav-link-color);
+  font-weight: 600;
+}
+
+.detail_modal table th,
+.detail_modal table td {
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+}
+
+.detail_modal table tr:nth-child(even) {
+  background: var(--notify-bg-color);
+}
+
+.detail_modal tbody tr:hover{
+  cursor: pointer;
+  background: var(--ping-color);
+}
+/* 普通高亮 */
+.highlight {
+  box-shadow: 0 0 15px 5px var(--title-color);
+  border-radius: 5px;
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+.image_modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.image_modal_img {
+  max-width: 90%;
+  max-height: 90%;
+  border-radius: 8px;
+  box-shadow: 0 0 15px var(--title-color);
+}
+
+.image_modal_close {
+  position: absolute;
+  top: 20px;
+  right: 30px;
+  font-size: 30px;
+  color: white;
+  cursor: pointer;
+}
+.fa-magnifying-glass {
+  color: var(--edit-button-bg);
+  transition: transform 0.2s, color 0.2s;
+}
+.fa-magnifying-glass:hover {
+  color: var(--edit-button-bg-hover);
+  transform: scale(1.2);
+}
+/* 拖起来的元素 */
+.sortable-chosen {
+  opacity: 0.6;
+  transform: scale(1.05);
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* 占位元素 */
+.sortable-ghost {
+  background: var(--nav-bg-color);
+  border: 2px dashed var(--title-color);
+  min-height: 50px;
+  opacity: 0.4;
+}
+
+
+/* 拖动时的占位元素（占位在原位置） */
+.drag-ghost {
+  opacity: 0.3;
+  border: 2px dashed var(--title-color-right);
+  background: var(--nav-bg-color);
+}
+/* 拖动时实际跟随鼠标的元素 */
+.drag-fallback {
+  opacity: 0.6;
+  transform: rotate(2deg);
+  background: var(--nav-link-hover-color);
+  color: #fff;
+  z-index: 9999;
+}
+
+/* 被选中开始拖动的元素 */
+.drag-chosen {
+  opacity: 0.6;
+  border: 2px dashed var(--title-color);
+}
+
+.pdf_paper {
+  min-width: 110px;
+  min-height: 80px;
+  box-sizing: border-box;
+}
+.order-id-label {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  padding: 2px 5px;
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border-radius: 3px;
+  z-index: 2;
+}
+.order-table-container {
+  max-height: 300px;   /* ✅ 限制表格内容高度 */
+  overflow-y: auto;    /* ✅ 表格内容可滚动 */
+  border: 1px solid #ddd;
+  margin-top: 10px;
+}
+
+.order-detail-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.order-detail-table th,
+.order-detail-table td {
+  border: 1px solid #ddd;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.order-detail-table thead th {
+  position: sticky;  /* ✅ 表头固定 */
+  top: 0;
+  background: #f5f5f5;
+  z-index: 1;
+}
+
+.order-footer {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.print-btn {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.print-btn:hover {
+  background: #0056b3;
+}
+
+
+</style>
+<div class="search_container"><input type="text"  onkeydown="if(event.key === 'Enter'){ search_paiwei(); }" id="search_paiwei_input"><button onclick="search_paiwei()">Search</button><button onclick="show_qr_code()">App</button></div>
+<div id="group_container"></div>
+<!-- PDF 输入 Modal -->
+<div id="pdfModal" class="pdf_modal" style="display:none;">
+  <div class="pdf_modal_content">
+    <h3>请输入 PDF ID</h3>
+    <input type="text" id="pdfInput" class="Input" placeholder="输入 PDF ID" />
+    <div class="pdf_modal_buttons">
+      <button id="pdfSaveBtn">保存</button>
+      <button id="pdfCloseBtn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 在页面里引入 pdf.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
+<script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<script>
+
+let group_data = [];
+let socket = io("https://fahui.utbabuddha.com", {
+    transports: ["websocket"],   // 强制用 websocket 避免轮询问题
+    withCredentials: true        // 如果跨域需要 cookie
+});
+
+// ⚡ 监听后端广播的消息
+socket.on("fahui_dash_board", function(data) {
+    console.log("📡 收到更新:", data);
+
+    if (data.all_board) {
+        group_data = data.all_board;  // 更新全局数据
+        generate_fahui_board();       // 重新渲染白板
+    }
+});
+
+// ⚡ 页面加载时初始化
+window.onload = async function() {
+    try {
+        const response = await fetch("/api/list_all", {
+            method: "GET",
+            headers: { "Content-Type": "application/json" }
+        });
+
+        if (!response.ok) throw new Error("获取白板列表失败");
+
+        const res = await response.json();
+        if (res.all_board) {
+            group_data = res.all_board;  
+            generate_fahui_board();
+        } else {
+            console.warn("返回数据中没有 all_board:", res);
+        }
+    } catch (err) {
+        console.error("加载白板出错:", err);
+    }
+};
+function show_qr_code() {
+  console.log("button click")
+  const url = "https://fahui.utbabuddha.com/print_paiwei/download_app";
+
+  // 如果已有 modal，先删掉
+  const old = document.getElementById("QR_modal");
+  if (old) old.remove();
+
+  // 创建 modal
+  const modal = document.createElement("div");
+  modal.id = "QR_modal";
+  modal.style.position = "fixed";
+  modal.style.top = "0";
+  modal.style.left = "0";
+  modal.style.width = "100%";
+  modal.style.height = "100%";
+  modal.style.background = "rgba(0,0,0,0.5)";
+  modal.style.display = "flex";
+  modal.style.alignItems = "center";
+  modal.style.justifyContent = "center";
+  modal.style.zIndex = "9999";
+
+  // 创建二维码容器
+  const qrDiv = document.createElement("div");
+  qrDiv.id = "qrcode";
+  qrDiv.style.padding = "20px";
+  qrDiv.style.background = "#fff";
+  qrDiv.style.borderRadius = "10px";
+  qrDiv.style.cursor = "pointer"; // 鼠标变成点击
+  qrDiv.onclick = () => modal.remove(); // 点击关闭
+
+  modal.appendChild(qrDiv);
+  document.body.appendChild(modal);
+
+  // 生成二维码
+  new QRCode(qrDiv, {
+    text: url,
+    width: 220,
+    height: 220
+  });
+}
+
+
+let currentBoardId = null;
+let currentBoardName = null;
+
+
+async function search_paiwei(){
+  const input = document.getElementById("search_paiwei_input").value.trim();
+  if(!input){
+    console.log("请输入搜索内容");
+    return;
+  }
+  show_status_mask('loading');
+
+  try {
+    const res = await fetch(`/api/search_orders_data?value=${encodeURIComponent(input)}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" }
+    });
+
+    if (!res.ok) {
+      throw new Error("请求失败 " + res.status);
+    }
+
+    const data = await res.json();
+    if (data.length > 0) {
+      console.log("搜索结果:", data);
+      all_detail_modal(data);
+      show_status_mask('success');
+    } else {
+      console.log("没有找到结果");
+      show_status_mask('success');
+    }
+  } catch (err) {
+    console.error("搜索错误:", err);
+    show_status_mask('success');
+  }
+}
+
+function renderOrderTable(order) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "order-detail-wrapper";
+
+  // 顶部基本信息
+  const infoDiv = document.createElement("div");
+  infoDiv.className = "order-basic-info";
+  infoDiv.innerHTML = `
+    <p><strong>施主姓名：</strong>${order.customer_name || "-"}</p>
+    <p><strong>联系电话：</strong>${order.phone || "-"}</p>
+    <p><strong>订单ID：</strong>${order.id}</p>
+    <p><strong>下单时间：</strong>${order.created_at}</p>
+  `;
+  wrapper.appendChild(infoDiv);
+
+  // 表格容器（加滚动）
+  const tableContainer = document.createElement("div");
+  tableContainer.className = "order-table-container";
+
+  const table = document.createElement("table");
+  table.className = "order-detail-table";
+
+  const thead = document.createElement("thead");
+  thead.innerHTML = `
+    <tr>
+      <th>代码</th>
+      <th>项目</th>
+      <th>主要信息</th>
+      <th>功德金</th>
+      <th>操作</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+
+  let total = 0;
+  (order.order_items || []).forEach(item => {
+    const tr = document.createElement("tr");
+
+    const tdCode = document.createElement("td");
+    tdCode.textContent = get_fahui_type(item.code);
+    tdCode.onclick = () => find_paiwei(item);
+    tr.appendChild(tdCode);
+
+    const tdName = document.createElement("td");
+    tdName.textContent = item.item_name || "-";
+    tdName.onclick = () => find_paiwei(item);
+    tr.appendChild(tdName);
+
+    const tdInfo = document.createElement("td");
+    let info = "-";
+    if (item.item_form_data) {
+      if (item.item_form_data.owner?.length) {
+        info = item.item_form_data.owner.map(o => o.val).join("、");
+      } else if (item.item_form_data.deceased?.length) {
+        info = item.item_form_data.deceased.map(d => d.val).join("、");
+      } else {
+        const keys = Object.keys(item.item_form_data);
+        if (keys.length > 0) {
+          const first = item.item_form_data[keys[0]][0];
+          info = first?.val || "-";
+        }
+      }
+    }
+    tdInfo.textContent = info;
+    tdInfo.onclick = () => find_paiwei(item);
+    tr.appendChild(tdInfo);
+
+    const tdPrice = document.createElement("td");
+    tdPrice.textContent = (item.price || 0).toFixed(2);
+    tr.appendChild(tdPrice);
+
+    total += (item.price || 0);
+
+    const tdDetail = document.createElement("td");
+    const detailIcon = document.createElement("i");
+    detailIcon.className = "fa-solid fa-magnifying-glass";
+    detailIcon.style.cursor = "pointer";
+    detailIcon.title = "查看详情";
+    tdDetail.onclick = (e) => {
+      e.stopPropagation();
+      window.open(`/template/show_order_detail/${order.id}`, "_blank");
+    };
+    tdDetail.appendChild(detailIcon);
+    tr.appendChild(tdDetail);
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  tableContainer.appendChild(table);
+  wrapper.appendChild(tableContainer);
+
+  // ✅ 合计 + 按钮区
+  const footer = document.createElement("div");
+  footer.className = "order-footer";
+
+  const totalDiv = document.createElement("div");
+  totalDiv.className = "order-total";
+  totalDiv.textContent = `合计功德金：${total.toFixed(2)}`;
+  footer.appendChild(totalDiv);
+
+  const btnDiv = document.createElement("div");
+  btnDiv.className = "order-actions";
+  const printBtn = document.createElement("button");
+  printBtn.textContent = "🖨 打印收据";
+  printBtn.className = "print-btn";
+  printBtn.onclick = async () => {
+    if (confirm("是否要打印收据？")) {
+      try {
+        const res = await fetch(`/payment/print_receipt/${order.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        const data = await res.json();
+        if (data.success) {
+          Pushpopup("✅ 收据已发送打印机");
+        } else {
+          Pushpopup("❌ 打印失败: " + (data.message || "未知错误"));
+        }
+      } catch (err) {
+        console.error("打印出错:", err);
+        Pushpopup("❌ 请求异常，打印失败");
+      }
+    } else {
+      // 如果只是要原来的详情跳转，可以放这里
+      window.open(`/template/show_order_detail/${order.id}`, "_blank");
+    }
+  };
+  btnDiv.appendChild(printBtn);
+  footer.appendChild(btnDiv);
+
+  wrapper.appendChild(footer);
+
+  return wrapper;
+}
+
+
+
+// modal 渲染
+function all_detail_modal(data) {
+  let currentIndex = 0;
+
+  const modal = document.createElement("div");
+  modal.className = "detail_modal";
+
+  function renderPage(index) {
+    const order = data[index];
+    if (!order) return;
+    modal.innerHTML = "";
+
+    // 头部
+    const head = document.createElement("div");
+    head.className = "detail_modal_head";
+
+    const prevBtn = document.createElement("button");
+    prevBtn.textContent = "⟨ 上一页";
+    prevBtn.onclick = () => {
+      if (currentIndex > 0) {
+        currentIndex--;
+        renderPage(currentIndex);
+      }
+    };
+
+    const title = document.createElement("span");
+    title.textContent = `订单 ID: ${order.id}`;
+
+    const nextBtn = document.createElement("button");
+    nextBtn.textContent = "下一页 ⟩";
+    nextBtn.onclick = () => {
+      if (currentIndex < data.length - 1) {
+        currentIndex++;
+        renderPage(currentIndex);
+      }
+    };
+
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "✕";
+    closeBtn.onclick = () => modal.remove();
+
+    head.appendChild(prevBtn);
+    head.appendChild(title);
+    head.appendChild(nextBtn);
+    head.appendChild(closeBtn);
+
+    modal.appendChild(head);
+    makeModalDraggable(modal, head);
+
+    // ✅ 插入表格
+    modal.appendChild(renderOrderTable(order));
+  }
+
+  renderPage(currentIndex);
+  document.body.appendChild(modal);
+}
+
+// 单独的高亮函数
+function highlight_pdf(side_id, board_id) {
+  const el = document.getElementById(`pdf_id_${side_id}`);
+  if (!el) {
+    console.warn(`⚠️ 未找到 pdf_id_${side_id}`);
+    return;
+  }
+
+  el.classList.add("highlight");
+  el.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+
+  const parent = el.parentElement;
+  if (parent) {
+    // 每次调用先清掉上次的 shadow，保证可以重新点亮
+    parent.style.boxShadow = "none";
+
+    let count = 0;
+    const interval = setInterval(() => {
+      parent.style.boxShadow =
+        count % 2 === 0 ? "0 0 15px 5px red" : "none";
+      count++;
+      if (count > 5) { // 闪烁 3 次
+        clearInterval(interval);
+        parent.style.boxShadow = "none";
+      }
+    }, 400);
+  }
+}
+
+function find_paiwei(item) {
+  if (!item || !item.item_location || !item.item_location[0]) {
+    console.warn("❌ 无效的 item:", item);
+    return;
+  }
+
+  const pdfId = item.item_location[0].pdf_page_data.print_pdf_id;
+  const el = document.querySelector(`[data-print-pdf-id="${pdfId}"]`);
+
+  if (el) {
+    console.log(`✅ 找到 print_pdf_id=${pdfId} 的 DOM`);
+    highlight_pdf(el.dataset.sideId);
+  } else {
+    Pushpopup(`❌ 没找到 print_pdf_id=${pdfId} 的 DOM`);
+  }
+}
+
+
+// ✅ 修改拖动函数，允许传 modal + head
+function makeModalDraggable(modal, head) {
+  let offsetX = 0, offsetY = 0, isDown = false;
+
+  head.addEventListener("mousedown", e => {
+    isDown = true;
+    offsetX = e.clientX - modal.offsetLeft;
+    offsetY = e.clientY - modal.offsetTop;
+    head.style.cursor = "grabbing";
+  });
+
+  document.addEventListener("mousemove", e => {
+    if (!isDown) return;
+    modal.style.left = (e.clientX - offsetX) + "px";
+    modal.style.top = (e.clientY - offsetY) + "px";
+  });
+
+  document.addEventListener("mouseup", () => {
+    isDown = false;
+    head.style.cursor = "move";
+  });
+}
+
+
+function openPdfModal(board_id, board_name) {
+    currentBoardId = board_id;
+    currentBoardName = board_name;
+
+    const modal = document.getElementById("pdfModal");
+    const input = document.getElementById("pdfInput");
+    modal.style.display = "flex";
+    input.value = "";
+    input.focus();
+}
+
+// 关闭 modal
+document.getElementById("pdfCloseBtn").addEventListener("click", () => {
+  document.getElementById("pdfModal").style.display = "none";
+});
+
+// 保存逻辑（带选项：是否关闭 modal）
+async function savePdf(closeAfterSave = true) {
+  const input = document.getElementById("pdfInput");
+  const pdf_id = input.value.trim();
+  if (!pdf_id) {
+    alert("请输入 PDF ID");
+    return;
+  }
+
+  const result = await add_pdf(currentBoardId, pdf_id, currentBoardName);
+
+  if (result && result.success) {
+    if (closeAfterSave) {
+      // 正常按钮保存 → 关闭 modal
+      document.getElementById("pdfModal").style.display = "none";
+    } else {
+      // 回车保存 → 清空并重新聚焦
+      input.value = "";
+      input.focus();
+      generate_fahui_board();
+    }
+  } else {
+    alert(result.message || "保存失败");
+  }
+}
+
+// 保存按钮逻辑（点按钮 → 保存并关闭）
+document.getElementById("pdfSaveBtn").addEventListener("click", () => {
+  savePdf(true);
+});
+
+// 监听回车输入 PDF ID（回车 → 保存，不关闭）
+document.getElementById("pdfInput").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault(); // 防止 form 提交
+    savePdf(false);
+  }
+});
+
+
+
+async function add_board() {
+    const board_name = prompt("请输入 board_name:");
+    if (!board_name || board_name.trim() === "") {
+        alert("board_name 不能为空！");
+        return;
+    }
+
+    // ⚡ 计算新的 board_id
+    let newBoardId = 1;
+    if (group_data.length > 0) {
+        const maxId = Math.max(...group_data.map(b => b.board_id));
+        newBoardId = maxId + 1;
+    }
+
+    const result = await add_pdf(newBoardId, "none", board_name.trim());
+
+    // ⚡ 弹出状态提示
+    if (result.success) {
+        Pushpopup(result.message || "新增 PDF 成功！");
+        generate_fahui_board();
+    } else {
+        Pushpopup(result.message || "新增 PDF 失败！");
+    }
+}
+
+async function add_pdf(board_id, pdf_id="none", board_name="none") {
+    try {
+        const response = await fetch("/api/add_pdf", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ board_id, pdf_id, board_name })
+        });
+
+        if (!response.ok) {
+            return { success: false, message: "服务器响应失败" };
+        }
+        const res = await response.json();
+
+        // ⚡ 覆盖 group_data，保持和数据库同步
+        group_data = res.all_board;
+
+        console.log(`在 board_id=${board_id} 新增 PDF:`, res);
+
+        return { success: true, message: res.message || "新增成功" };
+    } catch (err) {
+        console.error("add_pdf 出错:", err);
+        return { success: false, message: err.message || "未知错误" };
+    }
+}
+
+let cache = false; // 或 false
+function generate_fahui_board() {
+    const container = document.getElementById("group_container");
+    if (!container) {
+        console.warn("未找到容器 #group_container");
+        return;
+    }
+
+    const existingBoards = new Map(
+        Array.from(container.children).map(div => [div.id, div])
+    );
+
+    const seenBoardIds = new Set();
+
+    group_data.forEach(data => {
+        const boardId = `board_id_${data.board_id}`;
+        seenBoardIds.add(boardId);
+
+        let boardDiv = existingBoards.get(boardId);
+        if (!boardDiv) {
+            boardDiv = document.createElement("div");
+            boardDiv.className = "white_board";
+            boardDiv.id = boardId;
+            container.appendChild(boardDiv);
+        } else {
+            boardDiv.innerHTML = "";
+        }
+
+        const title = document.createElement("h4");
+        title.className = "board_title";
+        title.textContent = data.board_name;
+
+        const addIcon = document.createElement("span");
+        addIcon.className = "add_pdf_icon";
+        addIcon.innerHTML = '<i class="fas fa-plus-circle"></i>';
+        addIcon.style.cursor = "pointer";
+        addIcon.style.marginLeft = "8px";
+
+        addIcon.addEventListener("click", () => {
+            openPdfModal(data.board_id, data.board_name);
+        });
+
+        const editIcon = document.createElement("span");
+        editIcon.className = "edit_board_data_icon";
+        editIcon.innerHTML = '<i class="fas fa-edit"></i>';
+        editIcon.style.cursor = "pointer";
+        editIcon.style.marginLeft = "8px";
+
+        editIcon.addEventListener("click", () => {
+            editBoardData(data);
+        });
+
+        title.appendChild(addIcon);
+        title.appendChild(editIcon);
+        boardDiv.appendChild(title);
+
+        // ✅ 生成 pdf 区域
+        const pdfArea = createPdfPapers(data.board_data, data.board_width);
+        pdfArea.id = `pdf_area_${data.board_id}`;   // 给每个 pdf 区域唯一 id
+        boardDiv.appendChild(pdfArea);
+
+        // ✅ 在这里绑定拖动
+        // enableDragSort(pdfArea, data.board_id);
+    });
+
+    existingBoards.forEach((div, id) => {
+        if (!seenBoardIds.has(id)) {
+            div.remove();
+        }
+    });
+}
+
+
+function createPdfPapers(board_data, board_width) {
+    const pdfArea = document.createElement("div");
+    pdfArea.className = "pdf_area";
+
+    if (board_width) {
+        pdfArea.style.display = "grid";
+        pdfArea.style.gridTemplateColumns = `repeat(${board_width}, max-content)`;
+        pdfArea.style.gap = "8px";
+        pdfArea.style.overflowX = "auto";
+        pdfArea.style.overflowY = "hidden";
+    }
+
+    if (Array.isArray(board_data) && board_data.length > 0) {
+        board_data.sort((a, b) => (a.location || 9999) - (b.location || 9999));
+
+        board_data.forEach(item => {
+            const pdfDiv = document.createElement("div");
+            pdfDiv.id = `pdf_id_${item.side_id}`;
+            pdfDiv.className = "pdf_paper";
+            pdfDiv.dataset.sideId = item.side_id;
+            pdfDiv.dataset.printPdfId = item.print_pdf_id;
+
+            if (item.width && item.height) {
+                const maxWidth = 150;
+                const maxHeight = 300;
+
+                // 按比例缩放
+                const scale = Math.min(maxWidth / item.width, maxHeight / item.height);
+
+                pdfDiv.style.width = (item.width * scale) + "px";
+                pdfDiv.style.height = (item.height * scale) + "px";
+                pdfDiv.style.position = "relative";
+            }
+
+            // ✅ 顶部的小容器
+            const label = document.createElement("div");
+            label.className = "order-id-label";
+            label.textContent = item.orders && item.orders.length > 0
+                ? `#${item.print_pdf_id}`   // 显示第一个 order 的 id
+                : "-";
+            pdfDiv.appendChild(label);
+
+            // 图片
+            const img = document.createElement("img");
+            img.src = cache
+                ? `/print_paiwei/print_paiwei_order_item/${item.print_pdf_id}?cache=${Date.now()}`
+                : `/print_paiwei/print_paiwei_order_item/${item.print_pdf_id}`;
+            img.style.width = "100%";
+            img.style.height = "100%";
+            pdfDiv.appendChild(img);
+
+            // 点击 & 右键事件
+            pdfDiv.addEventListener("click", (e) => {
+                open_selection(e, item);
+            });
+
+            pdfDiv.addEventListener("contextmenu", (e) => {
+                open_selection(e, item);
+            });
+
+            pdfArea.appendChild(pdfDiv);
+        });
+
+    } else {
+        const emptyMsg = document.createElement("p");
+        emptyMsg.className = "empty_notice";
+        emptyMsg.textContent = "暂无 PDF";
+        pdfArea.appendChild(emptyMsg);
+    }
+
+    return pdfArea;
+}
+
+function enableDragSort(container, board_id) {
+  Sortable.create(container, {
+    animation: 150,                 // 平滑动画
+    ghostClass: "drag-ghost",       // 占位元素的样式
+    chosenClass: "drag-chosen",     // 被拖动元素的样式
+    dragClass: "dragging",          // 拖动时给 body 的 class
+    // forceFallback: true,          // ✅ 强制使用克隆元素来显示拖动效果
+    // fallbackClass: "drag-fallback", // 拖动时的真实占位元素
+    // fallbackTolerance: 3,
+
+    onEnd: async function (evt) {
+      const draggedEl = evt.item;
+      const printPdfId = draggedEl.dataset.printPdfId;
+      const newIndex = evt.newIndex + 1; // 从 1 开始的 location
+
+      console.log(`📌 拖动 PDF ${printPdfId} 到 board=${board_id}, 位置=${newIndex}`);
+
+      try {
+        const res = await fetch("/api/insert_pdf", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            board_id: board_id,
+            pdf_id: parseInt(printPdfId),
+            location: newIndex
+          })
+        });
+        const data = await res.json();
+        console.log("✅ 插入结果:", data);
+      } catch (err) {
+        console.error("❌ 插入失败:", err);
+      }
+    }
+  });
+}
+
+
+// 弹出大图 Modal
+function showImageModal(printPdfId) {
+    // 如果已存在就关闭（开关效果）
+    let exist = document.querySelector(".image_modal");
+    if (exist) {
+        exist.remove();
+        return;
+    }
+
+    // 创建容器
+    const modal = document.createElement("div");
+    modal.className = "image_modal";
+
+    // 大图
+    const img = document.createElement("img");
+    img.src = `/print_paiwei/print_paiwei_order_item/${printPdfId}?t=${Date.now()}`;
+    img.className = "image_modal_img";
+
+    // 直接点背景或图片关闭
+    modal.onclick = () => modal.remove();
+    img.onclick = () => modal.remove();
+
+    modal.appendChild(img);
+    document.body.appendChild(modal);
+}
+
+function open_selection(e, item) {
+  e.preventDefault();   // 阻止默认右键菜单
+  e.stopPropagation();  // 防止冒泡导致立刻关闭
+
+  // 移除旧菜单
+  const oldMenu = document.getElementById("contextMenu");
+  if (oldMenu) oldMenu.remove();
+
+  const menu = document.createElement("div");
+  menu.id = "contextMenu";
+  menu.className = "context-menu";
+  menu.style.top = e.pageY + "px";
+  menu.style.left = e.pageX + "px";
+
+
+  const actions = [
+    { name: "delete_pdf", label: "删除 PDF", handler: () => delete_pdf(item) },
+    { name: "edit_pdf", label: "编辑 PDF", handler: () => edit_pdf(item) },
+    { name: "download_pdf", label: "下载 PDF", handler: () => download_pdf(item) },
+    { 
+      name: "remove_highlight", 
+      label: "关闭高亮", 
+      handler: () => {
+        console.log("remove id:"+ item.side_id)
+        const el = document.getElementById(`pdf_id_${item.side_id}`);
+        el.classList.remove("highlight");
+      }
+    },
+    { name: "download_pdf", label: "查看", handler: () => showImageModal(item.print_pdf_id) },
+  ];
+
+  actions.forEach(action => {
+    const option = document.createElement("div");
+    option.className = `context-menu-item ${action.name}`;
+    option.textContent = action.label;
+    option.addEventListener("click", () => {
+      action.handler();
+      menu.remove();
+    });
+    menu.appendChild(option);
+  });
+
+
+  document.body.appendChild(menu);
+
+  document.addEventListener("click", () => {
+    if (menu) menu.remove();
+  }, { once: true });
+}
+
+async function delete_pdf(item) {
+  console.log("delete_pdf called:", item);
+
+  const board_data_id = item.side_id;
+  if (!board_data_id) {
+    alert("无效的 board_data_id");
+    return;
+  }
+
+  // ⚡ 确认弹窗
+  if (!confirm(`确定要删除 PDF (side_id=${board_data_id}) 吗？`)) {
+    return; // 用户取消
+  }
+
+  try {
+    const response = await fetch(`/api/delete_board/${board_data_id}`, {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+
+    const result = await response.json();
+
+    if (result.status === "success") {
+      Pushpopup(result.message || "删除成功");
+      // ⚡ 更新前端缓存
+      if (result.all_board) {
+        group_data = result.all_board;
+        generate_fahui_board();
+      }
+    } else {
+      Pushpopup(result.message || "删除失败");
+    }
+  } catch (err) {
+    console.error("delete_pdf 出错:", err);
+    Pushpopup("请求异常");
+  }
+}
+
+
+function edit_pdf(item) {
+  console.log("edit_pdf called:", item);
+}
+
+function download_pdf(item) {
+  console.log("download_pdf called:", item);
+}
+
+
+function view_order_detail(print_pdf_id) {
+    // 打开订单详情页面
+    window.open(`/order_detail/${print_pdf_id}`, "_blank");
+}
+function editBoardData(data) {
+    // 如果已存在 modal 先移除
+    let oldModal = document.getElementById("edit_board_data_modal");
+    if (oldModal) oldModal.remove();
+
+    // 创建 modal 容器
+    const modal = document.createElement("div");
+    modal.id = "edit_board_data_modal";
+    modal.style.position = "fixed";
+    modal.style.top = "50%";
+    modal.style.left = "50%";
+    modal.style.transform = "translate(-50%, -50%)";
+    modal.style.background = "var(--bg-color)";
+    modal.style.color = "var(--text-color)";
+    modal.style.padding = "20px";
+    modal.style.boxShadow = "0 2px 10px rgba(0,0,0,0.3)";
+    modal.style.border = "1px solid var(--border-color)";
+    modal.style.zIndex = "1000";
+    modal.style.minWidth = "320px";
+    modal.style.borderRadius = "6px";
+
+    // 填充表单
+    modal.innerHTML = `
+        <h3 style="color: var(--title-color); margin-top: 0;">Edit Board Data</h3>
+        <label>Board Name:</label>
+        <input type="text" id="edit_board_name" class="Input" value="${data.board_name || ""}" style="width:100%;margin-bottom:10px;" />
+
+        <label>Board Width:</label>
+        <input type="number" id="edit_board_width" class="Input" value="${data.board_width || ""}" style="width:100%;margin-bottom:10px;" />
+
+        <label>Board Height:</label>
+        <input type="number" id="edit_board_height" class="Input" value="${data.board_height || ""}" style="width:100%;margin-bottom:10px;" />
+
+        <div style="text-align:right;">
+            <button id="edit_board_save" 
+                style="background: var(--save-button-bg); color: var(--button-text-color); border:none; padding:6px 12px; border-radius:4px; cursor:pointer;">
+                Save
+            </button>
+            <button id="edit_board_cancel" 
+                style="background: var(--delete-button-bg); color: var(--button-text-color); border:none; padding:6px 12px; border-radius:4px; cursor:pointer; margin-left:6px;">
+                Cancel
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // 绑定按钮
+    document.getElementById("edit_board_save").addEventListener("click", () => {
+        const updatedData = {
+            board_id: data.board_id,
+            board_name: document.getElementById("edit_board_name").value,
+            board_width: document.getElementById("edit_board_width").value,
+            board_height: document.getElementById("edit_board_height").value,
+            pdf_id: null   // ⚡ 因为只是编辑 board 信息，这里可以传 null
+        };
+
+        // 调用后端 API
+        fetch("/api/add_pdf", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(updatedData)
+        })
+        .then(res => res.json())
+        .then(resp => {
+            console.log("保存成功:", resp);
+            modal.remove();
+            window.location.reload(); // 刷新当前页面
+        })
+        .catch(err => {
+            console.error("保存失败:", err);
+        });
+    });
+
+    document.getElementById("edit_board_cancel").addEventListener("click", () => {
+        modal.remove();
+    });
+}
+
+</script>
+{% endblock %}
