@@ -2,11 +2,12 @@ from datetime import datetime
 from flask import send_from_directory,send_file, Response,current_app, Blueprint, jsonify,request,render_template
 from flask_login import login_required
 from models.fahui import Order,ItemFormData,OrderItem,PrintPDF,PDFPageData
-from models import db
+from app.extensions import db
 import os
 from function.config import data_path
 from werkzeug.utils import secure_filename
 import re
+from services.order_item_service import OrderItemService
 
 print_paiwei_bp = Blueprint('print_paiwei', __name__)
 
@@ -97,7 +98,7 @@ import base64
 def get_paiwei_data_by_item_ids(order_item_ids):
     """根据多个 order_item_id 获取 paiwei 数据"""
     items = OrderItem.query.filter(OrderItem.id.in_(order_item_ids)).all()
-    return [item.to_all_print() for item in items]
+    return [OrderItemService.to_all_print(item) for item in items]
 
 @print_paiwei_bp.route('/print_paiwei_order_item/<int:print_pdf_id>', methods=['GET'])
 def print_paiwei_order_item(print_pdf_id):
@@ -208,7 +209,7 @@ def filter_fahui_data(items):
     # 按 id 排序
     items_sorted = sorted(items, key=lambda x: x.id)
 
-    fahui_data = [item.to_all_print() for item in items_sorted]
+    fahui_data = [OrderItemService.to_all_print(item) for item in items_sorted]
     filtered_data = [item for item in fahui_data if not str(item.get("code", "")).startswith("D")]
     return filtered_data
 
@@ -726,7 +727,6 @@ def update_point_json():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-from models.fahui import OrderItem
 def get_paiwei_data(order_id_list):
     # 获取所有符合条件的 Order（订单）
     orders = Order.query.filter(Order.id.in_(order_id_list)).all()
@@ -737,7 +737,7 @@ def get_paiwei_data(order_id_list):
         results.extend(order.order_items)  # 拼接每个订单的所有 items
 
     # 返回格式化后的结果
-    data = [item.to_all_print() for item in results]
+    data = [OrderItemService.to_all_print(item) for item in results]
     return data
 
 

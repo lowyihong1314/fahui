@@ -1,7 +1,7 @@
 #function/user_control.py
 from flask import Blueprint,abort,send_file,jsonify,request,redirect,render_template,url_for,flash
 from flask_login import login_user, login_required, logout_user, current_user
-from models import db
+from app.extensions import db
 from models.user_data import User,Notification
 from datetime import timedelta,datetime
 from flask import session

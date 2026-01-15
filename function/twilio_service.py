@@ -3,7 +3,7 @@ from twilio.rest import Client
 import os
 from function.redis_client import redis_client
 from models.fahui import Order  # 确保你导入了 Order 模型
-from models import db
+from app.extensions import db
 from _token import TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, VERIFY_SERVICE_SID
 
 twilio_bp = Blueprint('twilio', __name__)

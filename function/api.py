@@ -2,14 +2,14 @@ from datetime import datetime
 from flask import send_file, current_app, Blueprint, jsonify,request
 from flask_login import login_required,current_user
 from models.fahui import Order,ItemFormData,OrderItem,PrintPDF,PDFPageData,BoardData,BoardHeader
-from models import db
+from app.extensions import db
 from function.config import verification_required
 from sqlalchemy import text
-from flask_socketio import emit, join_room
-from function.web_socket import socketio
+
+from services.order_service import OrderService
+from services.board_service import BoardService
 
 api_bp = Blueprint('api', __name__)
-
 
 @api_bp.route("/get_pdf_data/<int:pdf_id>", methods=["GET"])
 def get_pdf_data(pdf_id):
@@ -35,7 +35,7 @@ def delete_board(board_data_id):
         return jsonify({
             "status": "success",
             "message": f"BoardData {board_data_id} deleted successfully",
-            "all_board": BoardHeader.to_all()  # ⚡ 返回最新的全部
+            "all_board": BoardService.get_all_boards_with_orders()
         })
     except Exception as e:
         db.session.rollback()
@@ -43,7 +43,7 @@ def delete_board(board_data_id):
 
 @api_bp.route("/list_all", methods=["GET"])
 def list_all_boards():
-    return jsonify({"all_board": BoardHeader.to_all()})
+    return jsonify({"all_board": BoardService.get_all_boards_with_orders()})
 
 @api_bp.route("/insert_pdf", methods=["POST"])
 def insert_pdf():
@@ -98,7 +98,7 @@ def insert_pdf():
         "board_id": board_id,
         "pdf_id": pdf_id,
         "location": location,
-        "all_board": BoardHeader.to_all()
+        "all_board": BoardService.get_all_boards_with_orders()
     })
 
 @api_bp.route("/add_pdf", methods=["POST"])
@@ -194,11 +194,8 @@ def add_pdf():
         "side_id": board_entry.id if board_entry else None,
         "pdf_id": pdf_id,
         "pdf_data": [],
-        "all_board": BoardHeader.to_all()
+        "all_board": BoardService.get_all_boards_with_orders()
     }
-
-    # ⚡ 发送 socket 通知给所有客户端
-    socketio.emit("fahui_dash_board", payload)
 
     return jsonify(payload)
 
@@ -328,7 +325,7 @@ def search_orders_data():
         # 没有 value → 直接拉 version 下所有 order
         orders = query.order_by(desc(Order.created_at)).all()
 
-    return jsonify([o.to_all_detail() for o in orders])
+    return jsonify([OrderService.to_dict(o) for o in orders])
 
 
 import pandas as pd
@@ -350,7 +347,7 @@ def export_orders():
     form_data_rows = []
 
     for order in orders:
-        order_detail = order.to_all_detail()
+        order_detail = OrderService.to_all_detail(order)
 
         # 公共字段
         base_info = {
@@ -470,7 +467,7 @@ def get_order_detail():
     if not order:
         return jsonify({"error": "Order not found"}), 404
 
-    order_detail = order.to_all_detail()
+    order_detail = OrderService.to_all_detail(order)
 
     return jsonify(order_detail)
 
@@ -567,7 +564,7 @@ def fahui_search_emgine():
     for order in orders:
         if order.version == "DELETE" and (not current_user or not current_user.is_authenticated):
             continue
-        results.append(order.to_dict())
+        results.append(OrderService.to_dict(order))
 
     return jsonify({
         "success": True,

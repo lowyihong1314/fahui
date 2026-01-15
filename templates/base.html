@@ -28,7 +28,6 @@
         {% endblock %}
       </div>
       <small id="ping_ms">404</small>
-      <script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
       <script src="{{ url_for('static', filename='js/get_label_cn.js') }}"></script>
       <script src="{{ url_for('static', filename='js/show_alert.js') }}"></script>
 
@@ -66,7 +65,6 @@ async function fetchUserData() {
         const { username, id: userId } = user_data;
 
         update_navbar(user_data, ms);
-        initSocket(username, userId);
         if (typeof username === 'string' && username.trim() !== '') {
             // 已登录
             const loginTrueLink = document.createElement('li');

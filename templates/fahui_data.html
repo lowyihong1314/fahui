@@ -768,7 +768,7 @@ function search_orders_data() {
                 current_page = 1;
                 paginateData(data);
                 generate_page_list();
-                generate_cart(data);
+                // generate_cart(data);
                 generate_data_table(all_orders_data[current_page]);
             })
             .catch(error => {

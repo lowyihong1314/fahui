@@ -3,22 +3,20 @@ from models.user_data import User  # 引入数据库 & 用户模型
 from functools import wraps
 from flask import jsonify,redirect,url_for,session,request
 from models.fahui import Order  # 确保你导入了 Order 模型
-
+from app.extensions import login_manager
 import os
 
 # 获取当前文件的绝对路径 (__file__ 是当前 Python 文件本身)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 # 定位到上一级目录
-parent_dir = os.path.dirname(current_dir)
+flask_path = os.path.dirname(current_dir)
 
 # 拼接进入 'database' 文件夹
-data_path = os.path.join(parent_dir, 'database')
-
-
-# 初始化 Flask-Login
-login_manager = LoginManager()
+data_path = os.path.join(flask_path, 'database')
 login_manager.login_view = 'user_control.login'
+
+READ_ONLY_ORDER_VERSIONS = {"YLP_2024", "YLP_2025"}
 
 # 用户加载回调
 @login_manager.user_loader

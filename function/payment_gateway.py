@@ -4,8 +4,8 @@ from flask_login import current_user,login_required
 from sqlalchemy import func
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from function.config import data_path,parent_dir
-from models import db
+from function.config import data_path,flask_path
+from app.extensions import db
 
 from models.fahui import Order,ItemFormData,OrderItem
 from models.payment_data import PaymentData
@@ -19,6 +19,8 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.utils import ImageReader
 from reportlab.lib import colors
 from flask import send_file
+from services.order_service import OrderService
+from services.payment_service import PaymentService
 
 payment_bp = Blueprint('payment', __name__)
 
@@ -89,7 +91,7 @@ def get_all_payment_data():
     
     result = []
     for payment in payments:
-        result.append(payment.to_dict_full())
+        result.append(PaymentService.to_dict_full(payment))
     return jsonify({'success': True, 'data': result})
 
 @payment_bp.route('/get_payment_data/<int:order_id>', methods=['GET'])
@@ -158,7 +160,7 @@ def download_quotation_reportlab(order_id):
     if not order:
         return jsonify({"error": "Order not found"}), 404
 
-    order_detail = order.to_all_detail()
+    order_detail = OrderService.to_all_detail(order)
 
     font_path = os.path.join(data_path, 'kai.ttf')
     pdfmetrics.registerFont(TTFont('TW-Kai', font_path))
@@ -299,7 +301,7 @@ def get_payment_detail(id):
         return jsonify({'success': False, 'message': '支付记录不存在'}), 404
     if not hasattr(payment, 'to_dict_full'):
         return jsonify({'success': False, 'message': '未实现 to_dict_full 方法'}), 500
-    return jsonify({'success': True, 'data': payment.to_dict_full()})
+    return jsonify({'success': True, 'data': PaymentService.to_dict_full(payment)})
 
 @payment_bp.route('/get_payment_image/<int:id>', methods=['GET'])
 def get_payment_image(id):
@@ -308,7 +310,7 @@ def get_payment_image(id):
         return jsonify({'success': False, 'message': '图片不存在'}), 404
 
     # 构建图片的绝对路径
-    document_path = os.path.join(parent_dir, payment.document)
+    document_path = os.path.join(flask_path, payment.document)
     if not os.path.isfile(document_path):
         return jsonify({'success': False, 'message': '文件未找到'}), 404
 
