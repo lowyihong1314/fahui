@@ -19,6 +19,7 @@ flask_path = os.path.abspath(
 data_path = os.path.abspath(
     os.path.join(current_dir, "..", "database")
 )
+
 @login_manager.unauthorized_handler
 def unauthorized():
     return jsonify({

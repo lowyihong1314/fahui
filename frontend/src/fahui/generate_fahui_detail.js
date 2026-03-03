@@ -4,6 +4,7 @@ let socket = null;
 
 import { show_alert } from "../tools/show_alert.js";
 import { io } from "socket.io-client";
+import { open_fahui_input } from "./fahui_input.js";
 
 export async function open_fahui_detail_modal(container, order) {
   // 清空容器
@@ -242,8 +243,7 @@ function generate_fahui_detail() {
     addCard.style.boxShadow = "none";
   };
   addCard.onclick = () => {
-    console.log("新增牌位");
-    // open_create_item_modal(order_data);
+    open_fahui_input(container, order_data);
   };
 
   card_container.appendChild(addCard);
