@@ -1,9 +1,5 @@
 from app.extensions import db
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Date, Time, Float, Text, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
-from flask_login import current_user
-from app.services.order_service import OrderService
 
 class PaymentData(db.Model):
     __tablename__ = 'payment_data'

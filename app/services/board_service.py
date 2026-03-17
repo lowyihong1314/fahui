@@ -2,7 +2,7 @@
 
 from sqlalchemy.orm import joinedload
 from app.extensions import db
-from app.models.fahui import BoardHeader, BoardData
+from app.models import BoardData, BoardHeader
 
 
 class BoardService:

@@ -1,15 +1,15 @@
 from flask import Flask, Blueprint,send_from_directory
-from app.extensions import db, login_manager
+from app.extensions import db, login_manager, socketio
 from app.config import DevConfig, ProdConfig
 
-from app.function.template import template_bp
-from app.function.user_control import user_control_bp
+from app.function.board import board_router_bp
+from app.function.common import flask_path
+from app.function.fahui import fahui_router_bp
+from app.function.payment import payment_bp
 from app.function.print_paiwei import print_paiwei_bp
-from app.function.payment_gateway import payment_bp
-from app.function.board_router import board_router_bp
-from app.function.twilio_service import twilio_bp
-from app.function.fahui_router import fahui_router_bp
-from app.function.config import flask_path
+from app.function.template import template_bp
+from app.function.twilio import twilio_bp
+from app.function.user_control import user_control_bp
 import os
 
 
@@ -28,6 +28,7 @@ def create_app(env="dev"):
     # init extensions
     db.init_app(app)
     login_manager.init_app(app)
+    socketio.init_app(app)
 
     # ===== api root blueprint（一定要在函数里创建）=====
     api_root_bp = Blueprint("api_root", __name__)

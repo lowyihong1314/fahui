@@ -1,7 +1,7 @@
 # services/order_service.py
 
 from flask_login import current_user
-from app.models.fahui import Order,ItemFormData,OrderItem
+from app.models import ItemFormData, Order, OrderItem
 from sqlalchemy import or_
 from app.extensions import db
 from sqlalchemy.orm import joinedload
@@ -10,7 +10,7 @@ from flask import session
 class OrderService:
     @staticmethod
     def search_orders(
-        version: int,
+        version: str,
         value: str,
         page_num: int = 1,
         per_page: int = 20
@@ -59,7 +59,7 @@ class OrderService:
     # ========= 内部方法 =========
 
     @staticmethod
-    def _build_search_query(version: int, value: str):
+    def _build_search_query(version: str, value: str):
         query = (
             db.session.query(Order)
             .outerjoin(OrderItem, OrderItem.order_id == Order.id)

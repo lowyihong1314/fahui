@@ -1,6 +1,6 @@
 # services/order_item_service.py
 
-from app.models.fahui import OrderItem
+from app.models import OrderItem
 
 
 class OrderItemService:

@@ -1,4 +1,4 @@
-from _token import SECRET_KEY
+from _token import DB_HOST, DB_PASSWORD, DB_USER, SECRET_KEY
 
 class BaseConfig:
     SECRET_KEY = SECRET_KEY
@@ -7,13 +7,9 @@ class BaseConfig:
 
 class DevConfig(BaseConfig):
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = (
-        "mysql+pymysql://yukang:Lowyihong123@127.0.0.1/FAHUI"
-    )
+    SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/FAHUI"
 
 
 class ProdConfig(BaseConfig):
     DEBUG = False
-    SQLALCHEMY_DATABASE_URI = (
-        "mysql+pymysql://yukang:Lowyihong123@127.0.0.1/FAHUI"
-    )
+    SQLALCHEMY_DATABASE_URI = f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/FAHUI"
