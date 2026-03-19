@@ -1,0 +1,11 @@
+{
+  "src/init.js": {
+    "file": "init.js",
+    "name": "init",
+    "src": "src/init.js",
+    "isEntry": true,
+    "css": [
+      "assets/init-74zfbyI9.css"
+    ]
+  }
+}

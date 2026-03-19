@@ -27,6 +27,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, '../static/vite'),
     emptyOutDir: true,
+    manifest: 'manifest.json',
     rollupOptions: {
       input: path.resolve(__dirname, 'src/init.js'),
       output: {
